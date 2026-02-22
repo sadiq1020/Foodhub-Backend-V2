@@ -110,7 +110,7 @@ app.use(
 
 app.use(express.json());
 
-app.all("/api/auth/*", toNodeHandler(auth)); // ✅ Changed from /*splat to /*
+app.all("/api/auth/*splat", toNodeHandler(auth));
 
 // all custom routes
 app.use("/meals", mealRouter);
