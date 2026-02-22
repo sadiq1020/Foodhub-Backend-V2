@@ -71,8 +71,8 @@ async function seedAdmin() {
   try {
     // ✅ Get admin credentials from environment variables
     const adminData = {
-      name: process.env.ADMIN_NAME || "Admin User",
-      email: process.env.ADMIN_EMAIL || "admin@example.com",
+      name: process.env.ADMIN_NAME || "Admin Sadiq2",
+      email: process.env.ADMIN_EMAIL || "admin@sadiq2.com",
       password: process.env.ADMIN_PASSWORD || "admin1234",
       role: ROLES.ADMIN,
     };
