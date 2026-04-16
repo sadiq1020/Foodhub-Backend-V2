@@ -10,7 +10,7 @@ declare global {
         email: string;
         name: string;
         role: UserRole;
-        // emailVerified: boolean;
+        emailVerified: boolean;
       };
     }
   }
@@ -19,7 +19,6 @@ declare global {
 const auth = (...roles: UserRole[]) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Get user session using Better Auth
       const session = await betterAuth.api.getSession({
         headers: req.headers as any,
       });
@@ -27,32 +26,39 @@ const auth = (...roles: UserRole[]) => {
       if (!session) {
         return res.status(401).json({
           success: false,
-          message: "You are not authorized",
+          message: "Unauthorized. Please log in.",
         });
       }
 
-      // if (!session.user.emailVerified) {
-      //     return res.status(403).json({
-      //         success: false,
-      //         message: "Email verification required"
-      //     })
-      // }
+      // Block unverified users from ALL protected routes
+      if (!session.user.emailVerified) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Email not verified. Please check your inbox for the OTP and verify your email first.",
+        });
+      }
 
-      // Map session user to req.user for use in controllers
-      // We use 'as UserRole' because Better Auth sees additional fields as strings by default
+      // Block suspended/deactivated users
+      if (session.user.isActive === false) {
+        return res.status(403).json({
+          success: false,
+          message: "Your account has been suspended. Please contact support.",
+        });
+      }
+
       req.user = {
         id: session.user.id,
         email: session.user.email,
         name: session.user.name,
         role: session.user.role as UserRole,
-        // emailVerified: session.user.emailVerified
+        emailVerified: session.user.emailVerified,
       };
 
-      // Check if the user's role is allowed for this route
       if (roles.length && !roles.includes(req.user.role)) {
         return res.status(403).json({
           success: false,
-          message: `Access Denied: This action requires the ${roles.join(" or ")} role.`,
+          message: `Access denied. This action requires the ${roles.join(" or ")} role.`,
         });
       }
 
