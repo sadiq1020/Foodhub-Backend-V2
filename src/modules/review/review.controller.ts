@@ -1,13 +1,12 @@
 import { Request, Response } from "express";
-import AppError from "../../errors/AppError";
 import catchAsync from "../../shared/catchAsync";
 import { reviewService } from "./review.service";
 
 const createReview = catchAsync(async (req: Request, res: Response) => {
   const { mealId, rating, comment } = req.body;
-  if (!mealId || !rating) {
-    throw new AppError(400, "Meal ID and rating are required");
-  }
+  // if (!mealId || !rating) {
+  //   throw new AppError(400, "Meal ID and rating are required");
+  // }
   const review = await reviewService.createReview({
     mealId,
     customerId: req.user!.id,

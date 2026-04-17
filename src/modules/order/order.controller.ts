@@ -6,9 +6,9 @@ import { orderService } from "./order.service";
 // create order
 const createOrder = catchAsync(async (req: Request, res: Response) => {
   const { deliveryAddress, phone, notes, items } = req.body;
-  if (!deliveryAddress || !phone || !items || items.length === 0) {
-    throw new AppError(400, "Delivery address, phone, and items are required");
-  }
+  // if (!deliveryAddress || !phone || !items || items.length === 0) {
+  //   throw new AppError(400, "Delivery address, phone, and items are required");
+  // }
   const order = await orderService.createOrder({
     customerId: req.user!.id,
     deliveryAddress,

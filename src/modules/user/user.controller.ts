@@ -31,12 +31,12 @@ const updateUserStatus = catchAsync(async (req: Request, res: Response) => {
 
 const updateProfile = catchAsync(async (req: Request, res: Response) => {
   const { name, phone } = req.body;
-  if (!name || name.trim().length < 2) {
-    throw new AppError(400, "Name must be at least 2 characters");
-  }
-  if (phone && !/^[0-9]{10,15}$/.test(phone)) {
-    throw new AppError(400, "Phone must be 10-15 digits");
-  }
+  // if (!name || name.trim().length < 2) {
+  //   throw new AppError(400, "Name must be at least 2 characters");
+  // }
+  // if (phone && !/^[0-9]{10,15}$/.test(phone)) {
+  //   throw new AppError(400, "Phone must be 10-15 digits");
+  // }
   const updateData: IUpdateProfile = {
     name: name.trim(),
     phone: phone || null,

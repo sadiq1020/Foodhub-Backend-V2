@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
+import { ZodError } from "zod";
 
-// Prisma error codes we care about
-// Full list: https://www.prisma.io/docs/orm/reference/error-reference
 const PRISMA_NOT_FOUND_CODES = ["P2025", "P2001", "P2015", "P2018"];
 const PRISMA_CONFLICT_CODES = ["P2002"];
 
@@ -11,7 +10,6 @@ const isPrismaError = (err: any): boolean =>
 const handlePrismaError = (err: any) => {
   const code: string = err.code;
 
-  // Unique constraint violation (e.g. duplicate email, duplicate slug)
   if (PRISMA_CONFLICT_CODES.includes(code)) {
     const field = err.meta?.target
       ? String(err.meta.target).replace(/_/g, " ")
@@ -22,7 +20,6 @@ const handlePrismaError = (err: any) => {
     };
   }
 
-  // Record not found
   if (PRISMA_NOT_FOUND_CODES.includes(code)) {
     return {
       statusCode: 404,
@@ -30,7 +27,6 @@ const handlePrismaError = (err: any) => {
     };
   }
 
-  // Foreign key constraint (e.g. referencing a category/provider that doesn't exist)
   if (code === "P2003") {
     const field = err.meta?.field_name || "related record";
     return {
@@ -39,7 +35,6 @@ const handlePrismaError = (err: any) => {
     };
   }
 
-  // Fallback for other Prisma errors
   return {
     statusCode: 500,
     message: "A database error occurred.",
@@ -55,16 +50,32 @@ const globalErrorHandler = (
 ) => {
   const isDev = process.env.NODE_ENV === "development";
 
-  // Log every error in development for debugging
   if (isDev) {
     console.error("🔴 Global Error Handler caught:", err);
   }
 
-  // --- Operational errors thrown with AppError (e.g. "Meal not found") ---
+  // --- Zod validation errors ---
+  if (err instanceof ZodError) {
+    const errorDetails = err.issues.map((issue) => ({
+      field: issue.path.join(".") || "unknown",
+      message: issue.message,
+    }));
+
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed. Please check your input.",
+      errorDetails,
+      ...(isDev && { stack: err.stack }),
+    });
+  }
+
+  // --- Operational errors thrown with AppError ---
   if (err.isOperational) {
     return res.status(err.statusCode).json({
       success: false,
       message: err.message,
+      // include field-level details if present (e.g. from validateRequest)
+      ...(err.errorDetails && { errorDetails: err.errorDetails }),
       ...(isDev && { stack: err.stack }),
     });
   }
@@ -79,7 +90,7 @@ const globalErrorHandler = (
     });
   }
 
-  // --- JWT errors (in case you add custom JWT later) ---
+  // --- JWT errors ---
   if (err.name === "JsonWebTokenError") {
     return res.status(401).json({
       success: false,
@@ -94,7 +105,7 @@ const globalErrorHandler = (
     });
   }
 
-  // --- SyntaxError from express.json() (malformed JSON body) ---
+  // --- Malformed JSON body ---
   if (err instanceof SyntaxError && "body" in err) {
     return res.status(400).json({
       success: false,
@@ -102,8 +113,7 @@ const globalErrorHandler = (
     });
   }
 
-  // --- Unknown/unexpected errors ---
-  // In production: hide internal details from the client
+  // --- Unknown errors ---
   return res.status(500).json({
     success: false,
     message: isDev ? err.message : "Something went wrong. Please try again.",

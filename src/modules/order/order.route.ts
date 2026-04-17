@@ -1,12 +1,18 @@
 import express from "express";
 import auth from "../../middlewares/auth.middleware";
+import validateRequest from "../../middlewares/validateRequest";
 import { ROLES } from "../../shared";
 import { orderController } from "./order.controller";
-// import auth, { UserRole } from '../../middlewares/auth';
+import { createOrderSchema, updateOrderStatusSchema } from "./order.validation";
 
 const router = express.Router();
 
-router.post("/", auth(ROLES.CUSTOMER), orderController.createOrder);
+router.post(
+  "/",
+  auth(ROLES.CUSTOMER),
+  validateRequest(createOrderSchema),
+  orderController.createOrder,
+);
 
 router.get(
   "/admin/all",
@@ -17,11 +23,13 @@ router.get(
 router.put(
   "/:id/status",
   auth(ROLES.PROVIDER),
+  validateRequest(updateOrderStatusSchema),
   orderController.updateOrderStatus,
 );
 
 router.put("/:id/cancel", auth(ROLES.CUSTOMER), orderController.cancelOrder);
 router.get("/", auth(ROLES.CUSTOMER), orderController.getMyOrders);
+
 router.get(
   "/:id",
   auth(ROLES.CUSTOMER, ROLES.PROVIDER),
