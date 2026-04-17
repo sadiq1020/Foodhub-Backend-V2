@@ -1,3 +1,4 @@
+import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { ICreateMeal, IMealFilters, IUpdateMeal } from "./meal.interface";
 
@@ -10,12 +11,15 @@ const createMeal = async (data: ICreateMeal, userId: string) => {
   });
 
   if (!provider) {
-    throw new Error("Provider not found");
+    throw new AppError(404, "Provider not found");
   }
 
   // 2. Verify provider's userId matches authenticated user
   if (provider.userId !== userId) {
-    throw new Error("You can only create meals for your own provider profile");
+    throw new AppError(
+      403,
+      "You can only create meals for your own provider profile",
+    );
   }
 
   // 3. Verify category exists
@@ -25,7 +29,7 @@ const createMeal = async (data: ICreateMeal, userId: string) => {
   });
 
   if (!category) {
-    throw new Error("Category not found");
+    throw new AppError(404, "Category not found");
   }
 
   // 4. Create meal
@@ -116,7 +120,7 @@ const getMealById = async (mealId: string) => {
   });
 
   if (!result) {
-    throw new Error("Meal not found");
+    throw new AppError(404, "Meal not found");
   }
 
   const averageRating =
@@ -150,12 +154,12 @@ const updateMeal = async (
 
   // 2. Verify meal exists
   if (!meal) {
-    throw new Error("Meal not found");
+    throw new AppError(404, "Meal not found");
   }
 
   // 3. Verify meal.provider.userId matches authenticated user
   if (meal.provider.userId !== userId) {
-    throw new Error("You can only update your own meals");
+    throw new AppError(403, "You can only update your own meals");
   }
 
   // 4. Update meal
@@ -191,12 +195,12 @@ const deleteMeal = async (mealId: string, userId: string) => {
 
   // 2. Verify meal exists
   if (!meal) {
-    throw new Error("Meal not found");
+    throw new AppError(404, "Meal not found");
   }
 
   // 3. Verify meal.provider.userId matches authenticated user
   if (meal.provider.userId !== userId) {
-    throw new Error("You can only delete your own meals");
+    throw new AppError(403, "You can only delete your own meals");
   }
 
   // 4. Delete meal (Prisma will cascade delete related orderItems and reviews)
@@ -217,7 +221,7 @@ const getMyMeals = async (userId: string) => {
   });
 
   if (!provider) {
-    throw new Error("Provider profile not found");
+    throw new AppError(404, "Provider profile not found");
   }
 
   // 2. Get all meals for this provider

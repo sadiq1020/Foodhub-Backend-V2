@@ -1,3 +1,4 @@
+import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { IUpdateProfile } from "./user.interface";
 
@@ -73,7 +74,7 @@ const updateUserStatus = async (userId: string, isActive: boolean) => {
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw new AppError(404, "User not found");
   }
 
   // 2. Prevent admin from suspending themselves
@@ -82,7 +83,7 @@ const updateUserStatus = async (userId: string, isActive: boolean) => {
 
   // 3. Prevent suspending other admins (optional security)
   if (user.role === "ADMIN") {
-    throw new Error("Cannot change status of admin users");
+    throw new AppError(403, "Cannot change status of admin users");
   }
 
   // 4. Update user status

@@ -1,259 +1,94 @@
 import { Request, Response } from "express";
-// import { AuthRequest } from '@/app/middlewares/auth.middleware';
+import AppError from "../../errors/AppError";
+import catchAsync from "../../shared/catchAsync";
 import { orderService } from "./order.service";
 
-/**
- * Create a new order
- * POST /api/orders
- * Auth: Customer only
- */
-const createOrder = async (req: Request, res: Response) => {
-  try {
-    const { deliveryAddress, phone, notes, items } = req.body;
-    const customerId = req.user!.id; // From auth middleware
-
-    // Validate required fields
-    if (!deliveryAddress || !phone || !items || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Delivery address, phone, and items are required",
-      });
-    }
-
-    // Create order
-    const order = await orderService.createOrder({
-      customerId,
-      deliveryAddress,
-      phone,
-      notes,
-      items,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Order placed successfully",
-      data: order,
-    });
-  } catch (error: any) {
-    console.error("Create order error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to create order",
-    });
+// create order
+const createOrder = catchAsync(async (req: Request, res: Response) => {
+  const { deliveryAddress, phone, notes, items } = req.body;
+  if (!deliveryAddress || !phone || !items || items.length === 0) {
+    throw new AppError(400, "Delivery address, phone, and items are required");
   }
-};
+  const order = await orderService.createOrder({
+    customerId: req.user!.id,
+    deliveryAddress,
+    phone,
+    notes,
+    items,
+  });
+  res.status(201).json({
+    success: true,
+    message: "Order placed successfully",
+    data: order,
+  });
+});
 
-/**
- * Update order status
- * PUT /api/orders/:id/status
- * Auth: Provider only
- */
-const updateOrderStatus = async (req: Request, res: Response) => {
-  try {
-    const user = req.user;
+// update order status
+const updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
+  const orderId = req.params.id as string;
+  const { status } = req.body;
+  if (!orderId) throw new AppError(400, "Order ID is required");
+  if (!status) throw new AppError(400, "Status is required");
+  const order = await orderService.updateOrderStatus(
+    orderId,
+    status,
+    req.user!.id,
+  );
+  res.status(200).json({
+    success: true,
+    message: "Order status updated successfully",
+    data: order,
+  });
+});
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
+// cancel order
+const cancelOrder = catchAsync(async (req: Request, res: Response) => {
+  const orderId = req.params.id as string;
+  if (!orderId) throw new AppError(400, "Order ID is required");
+  const order = await orderService.cancelOrder(orderId, req.user!.id);
+  res.status(200).json({
+    success: true,
+    message: "Order cancelled successfully",
+    data: order,
+  });
+});
 
-    const orderId = req.params.id;
-    const { status } = req.body;
+// get my order
+const getMyOrders = catchAsync(async (req: Request, res: Response) => {
+  const orders = await orderService.getMyOrders(req.user!.id);
+  res.status(200).json({
+    success: true,
+    message: "Orders retrieved successfully",
+    data: orders,
+  });
+});
 
-    // Validate required fields
-    if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        message: "Order ID is required",
-      });
-    }
+// get all orders (Admin)
+const getAllOrdersForAdmin = catchAsync(async (req: Request, res: Response) => {
+  const orders = await orderService.getAllOrdersForAdmin();
+  res.status(200).json({
+    success: true,
+    message: "All orders retrieved successfully",
+    data: orders,
+    total: orders.length,
+  });
+});
 
-    if (!status) {
-      return res.status(400).json({
-        success: false,
-        message: "Status is required",
-      });
-    }
-
-    // Update order status
-    const order = await orderService.updateOrderStatus(
-      orderId,
-      status,
-      user.id,
-    );
-
-    res.status(200).json({
-      success: true,
-      message: "Order status updated successfully",
-      data: order,
-    });
-  } catch (error: any) {
-    console.error("Update order status error:", error);
-    res.status(400).json({
-      success: false,
-      message: error.message || "Failed to update order status",
-    });
-  }
-};
-
-/**
- * Cancel order
- * PUT /api/orders/:id/cancel
- * Auth: Customer only
- */
-const cancelOrder = async (req: Request, res: Response) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    const orderId = req.params.id;
-
-    // Validate required fields
-    if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        message: "Order ID is required",
-      });
-    }
-
-    // Cancel order
-    const order = await orderService.cancelOrder(orderId, user.id);
-
-    res.status(200).json({
-      success: true,
-      message: "Order cancelled successfully",
-      data: order,
-    });
-  } catch (error: any) {
-    console.error("Cancel order error:", error);
-    res.status(400).json({
-      success: false,
-      message: error.message || "Failed to cancel order",
-    });
-  }
-};
-
-/**
- * Get my orders
- * GET /api/orders
- * Auth: Customer only
- */
-const getMyOrders = async (req: Request, res: Response) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    // Get all orders for this customer
-    const orders = await orderService.getMyOrders(user.id);
-
-    res.status(200).json({
-      success: true,
-      message: "Orders retrieved successfully",
-      data: orders,
-    });
-  } catch (error: any) {
-    console.error("Get my orders error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to retrieve orders",
-    });
-  }
-};
-
-/**
- * Get all orders (Admin only)
- * GET /api/orders/admin/all
- * Auth: Admin only
- */
-const getAllOrdersForAdmin = async (req: Request, res: Response) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    // Get all orders from all customers
-    const orders = await orderService.getAllOrdersForAdmin();
-
-    res.status(200).json({
-      success: true,
-      message: "All orders retrieved successfully",
-      data: orders,
-      total: orders.length,
-    });
-  } catch (error: any) {
-    console.error("Get all orders error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to retrieve orders",
-    });
-  }
-};
-
-/**
- * Get order by ID
- * GET /api/orders/:id
- * Auth: Customer/Provider
- */
-const getOrderById = async (req: Request, res: Response) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    const orderId = req.params.id;
-
-    // Validate required fields
-    if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        message: "Order ID is required",
-      });
-    }
-
-    // Get order details
-    const order = await orderService.getOrderById(orderId, user.id, user.role);
-
-    res.status(200).json({
-      success: true,
-      message: "Order retrieved successfully",
-      data: order,
-    });
-  } catch (error: any) {
-    console.error("Get order by ID error:", error);
-
-    // Return 404 for not found, 403 for unauthorized access
-    const statusCode = error.message === "Order not found" ? 404 : 400;
-
-    res.status(statusCode).json({
-      success: false,
-      message: error.message || "Failed to retrieve order",
-    });
-  }
-};
+// get single order
+const getOrderById = catchAsync(async (req: Request, res: Response) => {
+  const orderId = req.params.id as string;
+  if (!orderId) throw new AppError(400, "Order ID is required");
+  const order = await orderService.getOrderById(
+    orderId,
+    req.user!.id,
+    req.user!.role,
+  );
+  res.status(200).json({
+    success: true,
+    message: "Order retrieved successfully",
+    data: order,
+  });
+});
 
 export const orderController = {
   createOrder,

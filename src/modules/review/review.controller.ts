@@ -1,53 +1,25 @@
 import { Request, Response } from "express";
+import AppError from "../../errors/AppError";
+import catchAsync from "../../shared/catchAsync";
 import { reviewService } from "./review.service";
 
-/**
- * Create review
- * POST /api/reviews
- * Auth: Customer only
- */
-const createReview = async (req: Request, res: Response) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    const { mealId, rating, comment } = req.body;
-
-    // Validate required fields
-    if (!mealId || !rating) {
-      return res.status(400).json({
-        success: false,
-        message: "Meal ID and rating are required",
-      });
-    }
-
-    // Create review
-    const review = await reviewService.createReview({
-      mealId,
-      customerId: user.id,
-      rating: Number(rating),
-      comment,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Review created successfully",
-      data: review,
-    });
-  } catch (error: any) {
-    console.error("Create review error:", error);
-    res.status(400).json({
-      success: false,
-      message: error.message || "Failed to create review",
-    });
+const createReview = catchAsync(async (req: Request, res: Response) => {
+  const { mealId, rating, comment } = req.body;
+  if (!mealId || !rating) {
+    throw new AppError(400, "Meal ID and rating are required");
   }
-};
+  const review = await reviewService.createReview({
+    mealId,
+    customerId: req.user!.id,
+    rating: Number(rating),
+    comment,
+  });
+  res.status(201).json({
+    success: true,
+    message: "Review created successfully",
+    data: review,
+  });
+});
 
 export const reviewController = {
   createReview,

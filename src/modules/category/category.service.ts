@@ -1,3 +1,4 @@
+import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { ICreateCategory, IUpdateCategory } from "./category.interface";
 
@@ -11,9 +12,9 @@ const generateSlug = (name: string): string => {
 
 // create new category
 const createCategory = async (data: ICreateCategory) => {
-  console.log("🔍 Data received in service:", data); // ✅ Debug
-  console.log("🔍 Data type:", typeof data); // ✅ Debug
-  console.log("🔍 Data keys:", Object.keys(data)); // ✅ Debug
+  // console.log("🔍 Data received in service:", data);
+  // console.log("🔍 Data type:", typeof data);
+  // console.log("🔍 Data keys:", Object.keys(data));
   // ✅ Auto-generate slug from name
   const categoryData = {
     name: data.name,
@@ -53,8 +54,12 @@ const updateCategory = async (categoryId: string, data: IUpdateCategory) => {
     select: { id: true },
   });
 
+  // if (!category) {
+  //   throw new Error("Category not found");
+  // }
+
   if (!category) {
-    throw new Error("Category not found");
+    throw new AppError(404, "Category not found");
   }
 
   // ✅ Auto-generate slug if name is being updated
@@ -93,12 +98,13 @@ const deleteCategory = async (categoryId: string) => {
   });
 
   if (!category) {
-    throw new Error("Category not found");
+    throw new AppError(404, "Category not found");
   }
 
   // 2. Check if category has meals
   if (category._count.meals > 0) {
-    throw new Error(
+    throw new AppError(
+      409,
       `Cannot delete category. It has ${category._count.meals} meal/s that is/are associate with it.`,
     );
   }

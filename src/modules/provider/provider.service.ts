@@ -1,3 +1,4 @@
+import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import {
   ICreateProviderProfile,
@@ -49,7 +50,7 @@ const getMyProfile = async (userId: string) => {
 
   // If no profile exists
   if (!profile) {
-    throw new Error("Provider profile not found");
+    throw new AppError(404, "Provider profile not found");
   }
 
   return profile;
@@ -68,7 +69,7 @@ const updateMyProfile = async (
 
   // 2. Verify profile exists
   if (!profile) {
-    throw new Error("Provider profile not found");
+    throw new AppError(404, "Provider profile not found");
   }
 
   // 3. Update provider profile
@@ -107,7 +108,7 @@ const getMyOrders = async (userId: string) => {
 
   // 2. Verify profile exists
   if (!profile) {
-    throw new Error("Provider profile not found");
+    throw new AppError(404, "Provider profile not found");
   }
 
   // 3. Find all orders that contain meals from this provider
@@ -193,7 +194,7 @@ const getProviderById = async (providerId: string) => {
   });
 
   if (!profile) {
-    throw new Error("Provider profile not found");
+    throw new AppError(404, "Provider profile not found");
   }
 
   return profile;

@@ -68,6 +68,8 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
 import { auth } from "./lib/auth";
+import globalErrorHandler from "./middlewares/globalErrorHandler"; // ← ADD
+import notFound from "./middlewares/notFound"; // ← ADD
 import { adminRouter } from "./modules/admin/admin.route";
 import { categoryRouter } from "./modules/category/category.router";
 import { mealRouter } from "./modules/meal/meal.router";
@@ -82,25 +84,25 @@ const app = express();
 // CORS Configuration for Production
 const allowedOrigins = [
   "http://localhost:3000", // Local development
-  "https://ph-next-level-b6-a4-foodhub-fronten.vercel.app", // ✅ Hardcode for now
+  "https://ph-next-level-b6-a4-foodhub-fronten.vercel.app",
   process.env.APP_URL, // Frontend URL from environment variable
 ].filter(Boolean);
 
-console.log("🔧 Allowed CORS origins:", allowedOrigins); // ✅ Debug
+// console.log("🔧 Allowed CORS origins:", allowedOrigins);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      console.log("📡 Request from origin:", origin); // ✅ Debug
+      console.log("📡 Request from origin:", origin);
 
       // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
-        console.log("✅ CORS allowed");
+        // console.log("✅ CORS allowed");
         callback(null, true);
       } else {
-        console.log("❌ CORS blocked");
+        // console.log("❌ CORS blocked");
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -126,5 +128,9 @@ app.use("/admin", adminRouter);
 app.get("/", (req, res) => {
   res.send("FoodHub API is running! 🍽️");
 });
+
+// ↓ These two MUST be after all routes
+app.use(notFound);
+app.use(globalErrorHandler);
 
 export default app;

@@ -1,3 +1,4 @@
+import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { ICreateOrder } from "./order.interface";
 import { generateOrderNumber } from "./order.utils";
@@ -14,7 +15,7 @@ const createOrder = async (data: ICreateOrder) => {
   let subtotal = 0;
   const orderItemsData = data.items.map((item) => {
     const meal = meals.find((m) => m.id === item.mealId);
-    if (!meal) throw new Error(`Meal ${item.mealId} not found`);
+    if (!meal) throw new AppError(404, `Meal ${item.mealId} not found`);
 
     const itemTotal = (meal.price as any) * item.quantity;
     subtotal += itemTotal;
@@ -106,7 +107,7 @@ const updateOrderStatus = async (
 
   // 2. Verify order exists
   if (!order) {
-    throw new Error("Order not found");
+    throw new AppError(404, "Order not found");
   }
 
   // 3. Verify the order contains items from this provider's meals
@@ -115,13 +116,19 @@ const updateOrderStatus = async (
   );
 
   if (!hasProviderMeals) {
-    throw new Error("You can only update orders that contain your meals");
+    throw new AppError(
+      403,
+      "You can only update orders that contain your meals",
+    );
   }
 
   // 4. Validate status (only allow provider-specific statuses)
   const allowedStatuses = ["PREPARING", "READY", "DELIVERED"];
   if (!allowedStatuses.includes(status)) {
-    throw new Error("Invalid status. Allowed: PREPARING, READY, DELIVERED");
+    throw new AppError(
+      400,
+      "Invalid status. Allowed: PREPARING, READY, DELIVERED",
+    );
   }
 
   // 5. Update order status
@@ -158,17 +165,17 @@ const cancelOrder = async (orderId: string, userId: string) => {
 
   // 2. Verify order exists
   if (!order) {
-    throw new Error("Order not found");
+    throw new AppError(404, "Order not found");
   }
 
   // 3. Only customer who placed the order can cancel
   if (order.customerId !== userId) {
-    throw new Error("You can only cancel your own orders");
+    throw new AppError(403, "You can only cancel your own orders");
   }
 
   // 4. Only if status is PLACED
   if (order.status !== "PLACED") {
-    throw new Error("Only orders with PLACED status can be cancelled");
+    throw new AppError(403, "Only orders with PLACED status can be cancelled");
   }
 
   // 5. Update status to CANCELLED
@@ -292,14 +299,14 @@ const getOrderById = async (
 
   // Verify order exists
   if (!order) {
-    throw new Error("Order not found");
+    throw new AppError(404, "Order not found");
   }
 
   // Authorization check
   if (userRole === "CUSTOMER") {
     // Customer can only view their own orders
     if (order.customerId !== userId) {
-      throw new Error("You can only view your own orders");
+      throw new AppError(403, "You can only view your own orders");
     }
   } else if (userRole === "PROVIDER") {
     // Provider can only view orders containing their meals
@@ -308,7 +315,10 @@ const getOrderById = async (
     );
 
     if (!hasProviderMeals) {
-      throw new Error("You can only view orders that contain your meals");
+      throw new AppError(
+        403,
+        "You can only view orders that contain your meals",
+      );
     }
     // no
   }
