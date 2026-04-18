@@ -75,6 +75,7 @@ import { authRouter } from "./modules/auth/auth.router";
 import { categoryRouter } from "./modules/category/category.router";
 import { mealRouter } from "./modules/meal/meal.router";
 import { orderRouter } from "./modules/order/order.route";
+import { paymentController } from "./modules/payment/payment.controller";
 import { providerProfilesRouter } from "./modules/provider/provider-profiles.route";
 import { providerRouter } from "./modules/provider/provider.route";
 import { reviewRouter } from "./modules/review/review.router";
@@ -109,6 +110,15 @@ app.use(
     },
     credentials: true,
   }),
+);
+
+// ⚠️ WEBHOOK MUST COME BEFORE express.json()
+// Stripe signature verification requires the raw Buffer body.
+// Once express.json() parses it, the raw body is gone and verification fails.
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  paymentController.handleStripeWebhook,
 );
 
 app.use(express.json());

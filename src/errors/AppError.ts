@@ -6,7 +6,7 @@ export interface IErrorDetail {
 class AppError extends Error {
   public statusCode: number;
   public isOperational: boolean;
-  public errorDetails?: IErrorDetail[];
+  public errorDetails?: IErrorDetail[] | undefined;
 
   constructor(
     statusCode: number,

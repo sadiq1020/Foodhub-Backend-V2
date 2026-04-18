@@ -25,6 +25,12 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+}
+
 // ==========================================
 // CUSTOM MODELS
 // ==========================================
@@ -97,12 +103,14 @@ model Order {
   deliveryFee Decimal @default(0) @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
 
-  status OrderStatus @default(PLACED)
+  status        OrderStatus   @default(PLACED)
+  paymentStatus PaymentStatus @default(UNPAID) // ← ADD THIS
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items OrderItem[]
+  items   OrderItem[]
+  payment Payment? // ← ADD THIS
 
   @@map("orders")
 }
@@ -120,6 +128,23 @@ model OrderItem {
   price    Decimal @db.Decimal(10, 2)
 
   @@map("order_items")
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  amount        Decimal       @db.Decimal(10, 2)
+  status        PaymentStatus @default(UNPAID)
+  transactionId String        @unique // our internal ID (UUID)
+  stripeEventId String? // Stripe's event ID — used for idempotency
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payments")
 }
 
 model Review {
