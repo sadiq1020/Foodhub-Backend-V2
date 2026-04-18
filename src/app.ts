@@ -71,6 +71,7 @@ import { auth } from "./lib/auth";
 import globalErrorHandler from "./middlewares/globalErrorHandler"; // ← ADD
 import notFound from "./middlewares/notFound"; // ← ADD
 import { adminRouter } from "./modules/admin/admin.route";
+import { authRouter } from "./modules/auth/auth.router";
 import { categoryRouter } from "./modules/category/category.router";
 import { mealRouter } from "./modules/meal/meal.router";
 import { orderRouter } from "./modules/order/order.route";
@@ -115,6 +116,7 @@ app.use(express.json());
 app.use("/api/auth", toNodeHandler(auth));
 
 // all custom routes
+app.use("/auth", authRouter);
 app.use("/meals", mealRouter);
 app.use("/categories", categoryRouter);
 app.use("/provider", providerRouter);
