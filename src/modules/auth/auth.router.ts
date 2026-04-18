@@ -11,7 +11,7 @@ import {
 
 const router = express.Router();
 
-// Public routes — no session needed
+// Public routes
 router.post(
   "/forgot-password",
   validateRequest(forgotPasswordSchema),
@@ -24,7 +24,7 @@ router.post(
   authController.resetPassword,
 );
 
-// Protected route — must be logged in
+// Protected routes
 router.post(
   "/change-password",
   authMiddleware(ROLES.CUSTOMER, ROLES.PROVIDER, ROLES.ADMIN),

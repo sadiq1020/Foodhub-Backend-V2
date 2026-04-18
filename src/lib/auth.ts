@@ -90,6 +90,8 @@ import { sendOtpEmail } from "./email";
 import { prisma } from "./prisma";
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL!, // backend URL — required for OAuth callbacks
+
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -125,6 +127,22 @@ export const auth = betterAuth({
     requireEmailVerification: true,
   },
 
+  // Google OAuth — customers only
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+
+      mapProfileToUser: () => {
+        return {
+          role: "CUSTOMER",
+          isActive: true,
+          emailVerified: true,
+        };
+      },
+    },
+  },
+
   emailVerification: {
     sendOnSignUp: true,
     sendOnSignIn: false,
@@ -135,10 +153,9 @@ export const auth = betterAuth({
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,
-      expiresIn: 10 * 60, // 10 minutes
+      expiresIn: 10 * 60,
 
       async sendVerificationOTP({ email, otp, type }) {
-        // We don't send OTPs for sign-in type
         if (type === "sign-in") return;
 
         const user = await prisma.user.findUnique({
@@ -151,7 +168,6 @@ export const auth = betterAuth({
           return;
         }
 
-        // Admins are auto-verified on seed — skip OTP for them
         if (user.role === "ADMIN") {
           console.log(`Skipping OTP for admin user: ${email}`);
           return;
@@ -161,7 +177,6 @@ export const auth = betterAuth({
           to: email,
           name: user.name,
           otp,
-          // type is now only "email-verification" | "forget-password"
           type: type as "email-verification" | "forget-password",
         });
       },

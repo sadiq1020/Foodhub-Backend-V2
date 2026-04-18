@@ -154,8 +154,28 @@ const changePassword = async (
   return { message: "Password changed successfully. Please log in again." };
 };
 
+// Called after Google OAuth completes successfully.
+// Creates a customer record in DB if this is a first-time Google login.
+const handleGoogleLoginSuccess = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, role: true },
+  });
+
+  if (!user) {
+    throw new AppError(404, "User not found after Google login.");
+  }
+
+  // Google users are always customers — nothing extra needed for this project
+  // since there's no separate Customer profile table (unlike Healthcare project)
+  // The user row itself is the customer record.
+
+  return { user };
+};
+
 export const authService = {
   forgotPassword,
   resetPassword,
   changePassword,
+  handleGoogleLoginSuccess,
 };
