@@ -53,13 +53,24 @@ const getProviderById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// const getAllProviders = catchAsync(async (req: Request, res: Response) => {
+//   const providers = await providerService.getAllProviders();
+//   res.status(200).json({
+//     success: true,
+//     message: "Providers retrieved successfully",
+//     data: providers,
+//     total: providers.length,
+//   });
+// });
+
 const getAllProviders = catchAsync(async (req: Request, res: Response) => {
-  const providers = await providerService.getAllProviders();
+  // Pass all query params — the QueryBuilder picks what it needs
+  const result = await providerService.getAllProviders(req.query as any);
   res.status(200).json({
     success: true,
     message: "Providers retrieved successfully",
-    data: providers,
-    total: providers.length,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

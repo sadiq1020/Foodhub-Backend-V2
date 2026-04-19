@@ -5,26 +5,28 @@ export interface IMealFilters {
   maxPrice?: number | undefined;
   search?: string | undefined;
   providerId?: string | undefined;
+  page?: string | undefined;
+  limit?: string | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
 }
 
 export interface ICreateMeal {
   name: string;
-  description?: string;
+  description?: string | undefined;
   price: number;
-  image?: string;
+  image?: string | undefined;
   categoryId: string;
   providerId: string;
-  dietary?: string[];
-  spiceLevel?: number;
+  dietary?: string[] | undefined;
 }
 
 export interface IUpdateMeal {
-  name?: string;
-  description?: string;
-  price?: number;
-  image?: string;
-  isAvailable?: boolean;
-  categoryId?: string;
-  dietary?: string[];
-  spiceLevel?: number;
+  name?: string | undefined;
+  description?: string | undefined;
+  price?: number | undefined;
+  image?: string | undefined;
+  isAvailable?: boolean | undefined;
+  categoryId?: string | undefined;
+  dietary?: string[] | undefined;
 }

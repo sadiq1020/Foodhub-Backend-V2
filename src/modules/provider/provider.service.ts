@@ -1,5 +1,6 @@
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
+import { IQueryParams, QueryBuilder } from "../../utils/QueryBuilder";
 import {
   ICreateProviderProfile,
   IUpdateProviderProfile,
@@ -201,27 +202,43 @@ const getProviderById = async (providerId: string) => {
 };
 
 // get all provider profiles (Public)
-const getAllProviders = async () => {
-  const providers = await prisma.providerProfiles.findMany({
-    select: {
-      id: true,
-      businessName: true,
-      description: true,
-      address: true,
-      logo: true,
-      createdAt: true,
-      _count: {
-        select: {
-          meals: true,
-        },
-      },
-    },
-    orderBy: {
-      businessName: "asc",
-    },
-  });
+// const getAllProviders = async () => {
+//   const providers = await prisma.providerProfiles.findMany({
+//     select: {
+//       id: true,
+//       businessName: true,
+//       description: true,
+//       address: true,
+//       logo: true,
+//       createdAt: true,
+//       _count: {
+//         select: {
+//           meals: true,
+//         },
+//       },
+//     },
+//     orderBy: {
+//       businessName: "asc",
+//     },
+//   });
 
-  return providers;
+//   return providers;
+// };
+
+// NOW uses QueryBuilder — supports ?page=1&limit=10&search=burger&sortBy=businessName
+const getAllProviders = async (queryParams: IQueryParams) => {
+  return new QueryBuilder(prisma.providerProfiles, queryParams, {
+    searchableFields: ["businessName", "description", "address"],
+    defaultSortBy: "businessName",
+    defaultSortOrder: "asc",
+    defaultLimit: 12,
+  })
+    .search()
+    .paginate()
+    .sort()
+    .execute({
+      _count: { select: { meals: true } },
+    });
 };
 
 export const providerService = {

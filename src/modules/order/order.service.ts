@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { stripe } from "../../config/stripe";
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
+import { IQueryParams, QueryBuilder } from "../../utils/QueryBuilder";
 import { ICreateOrder } from "./order.interface";
 import { generateOrderNumber } from "./order.utils";
 
@@ -210,45 +211,89 @@ const cancelOrder = async (orderId: string, userId: string) => {
 };
 
 // get my orders (Customer only)
-const getMyOrders = async (userId: string) => {
-  return prisma.order.findMany({
-    where: { customerId: userId },
-    include: {
+// const getMyOrders = async (userId: string) => {
+//   return prisma.order.findMany({
+//     where: { customerId: userId },
+//     include: {
+//       items: {
+//         include: {
+//           meal: {
+//             select: { id: true, name: true, image: true, price: true },
+//           },
+//         },
+//       },
+//       payment: {
+//         select: { id: true, status: true, amount: true },
+//       },
+//     },
+//     orderBy: { createdAt: "desc" },
+//   });
+// };
+
+const getMyOrders = async (userId: string, queryParams: IQueryParams) => {
+  return new QueryBuilder(prisma.order, queryParams, {
+    defaultSortBy: "createdAt",
+    defaultSortOrder: "desc",
+    defaultLimit: 10,
+  })
+    .paginate()
+    .sort()
+    .where({ customerId: userId })
+    .execute({
       items: {
         include: {
-          meal: {
-            select: { id: true, name: true, image: true, price: true },
-          },
+          meal: { select: { id: true, name: true, image: true, price: true } },
         },
       },
-      payment: {
-        select: { id: true, status: true, amount: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      payment: { select: { id: true, status: true, amount: true } },
+    });
 };
 
 // get all orders (Admin only)
-const getAllOrdersForAdmin = async () => {
-  return prisma.order.findMany({
-    include: {
+// const getAllOrdersForAdmin = async () => {
+//   return prisma.order.findMany({
+//     include: {
+//       items: {
+//         include: {
+//           meal: {
+//             select: { id: true, name: true, image: true, price: true },
+//           },
+//         },
+//       },
+//       customer: {
+//         select: { id: true, name: true, email: true, phone: true },
+//       },
+//       payment: {
+//         select: { id: true, status: true, amount: true, transactionId: true },
+//       },
+//     },
+//     orderBy: { createdAt: "desc" },
+//   });
+// };
+
+const getAllOrdersForAdmin = async (queryParams: IQueryParams) => {
+  return new QueryBuilder(prisma.order, queryParams, {
+    searchableFields: ["orderNumber"],
+    filterableFields: ["status", "paymentStatus"],
+    defaultSortBy: "createdAt",
+    defaultSortOrder: "desc",
+    defaultLimit: 10,
+  })
+    .search()
+    .filter()
+    .paginate()
+    .sort()
+    .execute({
       items: {
         include: {
-          meal: {
-            select: { id: true, name: true, image: true, price: true },
-          },
+          meal: { select: { id: true, name: true, image: true, price: true } },
         },
       },
-      customer: {
-        select: { id: true, name: true, email: true, phone: true },
-      },
+      customer: { select: { id: true, name: true, email: true, phone: true } },
       payment: {
         select: { id: true, status: true, amount: true, transactionId: true },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+    });
 };
 
 // get order by id (Customer/Provider)

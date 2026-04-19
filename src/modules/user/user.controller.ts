@@ -4,13 +4,23 @@ import catchAsync from "../../shared/catchAsync";
 import { IUpdateProfile } from "./user.interface";
 import { userService } from "./user.service";
 
+// const getAllUsers = catchAsync(async (req: Request, res: Response) => {
+//   const users = await userService.getAllUsers();
+//   res.status(200).json({
+//     success: true,
+//     message: "Users retrieved successfully",
+//     data: users,
+//     total: users.length,
+//   });
+// });
+
 const getAllUsers = catchAsync(async (req: Request, res: Response) => {
-  const users = await userService.getAllUsers();
+  const result = await userService.getAllUsers(req.query as any);
   res.status(200).json({
     success: true,
     message: "Users retrieved successfully",
-    data: users,
-    total: users.length,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

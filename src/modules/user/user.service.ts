@@ -1,5 +1,6 @@
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
+import { IQueryParams, QueryBuilder } from "../../utils/QueryBuilder";
 import { IUpdateProfile } from "./user.interface";
 
 /*
@@ -44,25 +45,57 @@ const getAllUsers = async (filters: IUserFilters) => {
 */
 
 // get all users (Admin only)
-const getAllUsers = async () => {
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      isActive: true,
-      emailVerified: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+// const getAllUsers = async () => {
+//   const users = await prisma.user.findMany({
+//     select: {
+//       id: true,
+//       name: true,
+//       email: true,
+//       phone: true,
+//       role: true,
+//       isActive: true,
+//       emailVerified: true,
+//       createdAt: true,
+//       updatedAt: true,
+//     },
+//     orderBy: {
+//       createdAt: "desc",
+//     },
+//   });
 
-  return users;
+//   return users;
+// };
+
+const getAllUsers = async (queryParams: IQueryParams) => {
+  const result = await new QueryBuilder(prisma.user, queryParams, {
+    searchableFields: ["name", "email"],
+    filterableFields: ["role", "isActive"],
+    defaultSortBy: "createdAt",
+    defaultSortOrder: "desc",
+    defaultLimit: 10,
+  })
+    .search()
+    .filter()
+    .paginate()
+    .sort()
+    .execute();
+
+  // Remove sensitive fields from result — select isn't available in QueryBuilder
+  // so we strip them manually after fetch
+  return {
+    ...result,
+    data: result.data.map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    })),
+  };
 };
 
 // update user status (suspend/activate, only admin)

@@ -1,5 +1,6 @@
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
+import { QueryBuilder } from "../../utils/QueryBuilder";
 import { ICreateMeal, IMealFilters, IUpdateMeal } from "./meal.interface";
 
 // create a meal with validation
@@ -50,43 +51,86 @@ const createMeal = async (data: ICreateMeal, userId: string) => {
 };
 
 // get all meals with filters - KEEP USING THE ORIGINAL PRISMA IMPORT
+// const getAllMeals = async (filters: IMealFilters) => {
+//   const { categoryId, dietary, minPrice, maxPrice, search, providerId } =
+//     filters;
+
+//   const result = await prisma.meal.findMany({
+//     // ... rest stays exactly the same
+//     where: {
+//       isAvailable: true,
+//       ...(categoryId && { categoryId }),
+//       ...(providerId && { providerId }),
+//       ...(dietary && { dietary: { has: dietary } }),
+//       price: {
+//         ...(minPrice !== undefined && { gte: minPrice }),
+//         ...(maxPrice !== undefined && { lte: maxPrice }),
+//       },
+//       ...(search && {
+//         OR: [
+//           { name: { contains: search, mode: "insensitive" } },
+//           { description: { contains: search, mode: "insensitive" } },
+//         ],
+//       }),
+//     },
+//     include: {
+//       category: true,
+//       provider: {
+//         select: {
+//           id: true,
+//           businessName: true,
+//         },
+//       },
+//     },
+//     orderBy: {
+//       createdAt: "desc",
+//     },
+//   });
+
+//   return result;
+// };
+
+// NOW uses QueryBuilder — supports ?page=1&limit=10&search=pizza&sortBy=price&sortOrder=asc
 const getAllMeals = async (filters: IMealFilters) => {
-  const { categoryId, dietary, minPrice, maxPrice, search, providerId } =
-    filters;
+  const {
+    categoryId,
+    dietary,
+    minPrice,
+    maxPrice,
+    providerId,
+    ...queryParams
+  } = filters;
 
-  const result = await prisma.meal.findMany({
-    // ... rest stays exactly the same
-    where: {
-      isAvailable: true,
-      ...(categoryId && { categoryId }),
-      ...(providerId && { providerId }),
-      ...(dietary && { dietary: { has: dietary } }),
-      price: {
-        ...(minPrice !== undefined && { gte: minPrice }),
-        ...(maxPrice !== undefined && { lte: maxPrice }),
-      },
-      ...(search && {
-        OR: [
-          { name: { contains: search, mode: "insensitive" } },
-          { description: { contains: search, mode: "insensitive" } },
-        ],
-      }),
-    },
-    include: {
+  // Build extra where conditions for filters QueryBuilder doesn't handle
+  // (dietary arrays and price ranges need special Prisma syntax)
+  const extraWhere: Record<string, any> = {
+    isAvailable: true,
+  };
+
+  if (categoryId) extraWhere.categoryId = categoryId;
+  if (providerId) extraWhere.providerId = providerId;
+  if (dietary) extraWhere.dietary = { has: dietary };
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    extraWhere.price = {
+      ...(minPrice !== undefined && { gte: minPrice }),
+      ...(maxPrice !== undefined && { lte: maxPrice }),
+    };
+  }
+
+  return new QueryBuilder(prisma.meal, queryParams, {
+    searchableFields: ["name", "description"],
+    defaultSortBy: "createdAt",
+    defaultSortOrder: "desc",
+    defaultLimit: 10,
+  })
+    .search()
+    .paginate()
+    .sort()
+    .where(extraWhere)
+    .execute({
       category: true,
-      provider: {
-        select: {
-          id: true,
-          businessName: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-
-  return result;
+      provider: { select: { id: true, businessName: true } },
+    });
 };
 
 // get meal by id - KEEP USING THE ORIGINAL PRISMA IMPORT
@@ -165,7 +209,7 @@ const updateMeal = async (
   // 4. Update meal
   const result = await prisma.meal.update({
     where: { id: mealId },
-    data,
+    data: data as any,
     include: {
       category: true,
       provider: {

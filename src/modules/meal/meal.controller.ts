@@ -13,6 +13,23 @@ const createMeal = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// const getAllMeals = catchAsync(async (req: Request, res: Response) => {
+//   const filters: IMealFilters = {
+//     categoryId: req.query.categoryId as string | undefined,
+//     dietary: req.query.dietary as string | undefined,
+//     providerId: req.query.providerId as string | undefined,
+//     search: req.query.search as string | undefined,
+//     minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
+//     maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
+//   };
+//   const result = await mealService.getAllMeals(filters);
+//   res.status(200).json({
+//     success: true,
+//     message: "Meals retrieved successfully",
+//     data: result,
+//   });
+// });
+
 const getAllMeals = catchAsync(async (req: Request, res: Response) => {
   const filters: IMealFilters = {
     categoryId: req.query.categoryId as string | undefined,
@@ -21,12 +38,20 @@ const getAllMeals = catchAsync(async (req: Request, res: Response) => {
     search: req.query.search as string | undefined,
     minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
     maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
+    // Pagination params
+    page: req.query.page as string | undefined,
+    limit: req.query.limit as string | undefined,
+    sortBy: req.query.sortBy as string | undefined,
+    sortOrder: req.query.sortOrder as "asc" | "desc" | undefined,
   };
+
   const result = await mealService.getAllMeals(filters);
+
   res.status(200).json({
     success: true,
     message: "Meals retrieved successfully",
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

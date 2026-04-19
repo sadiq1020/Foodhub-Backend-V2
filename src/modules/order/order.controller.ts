@@ -50,22 +50,48 @@ const cancelOrder = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// const getMyOrders = catchAsync(async (req: Request, res: Response) => {
+//   const orders = await orderService.getMyOrders(req.user!.id);
+//   res.status(200).json({
+//     success: true,
+//     message: "Orders retrieved successfully",
+//     data: orders,
+//   });
+// });
+
 const getMyOrders = catchAsync(async (req: Request, res: Response) => {
-  const orders = await orderService.getMyOrders(req.user!.id);
+  const result = await orderService.getMyOrders(
+    req.user!.id,
+    req.query as any, // ← pass query params for pagination
+  );
   res.status(200).json({
     success: true,
     message: "Orders retrieved successfully",
-    data: orders,
+    data: result.data,
+    meta: result.meta,
   });
 });
 
+// const getAllOrdersForAdmin = catchAsync(async (req: Request, res: Response) => {
+//   const orders = await orderService.getAllOrdersForAdmin();
+//   res.status(200).json({
+//     success: true,
+//     message: "All orders retrieved successfully",
+//     data: orders,
+//     total: orders.length,
+//   });
+// });
+
 const getAllOrdersForAdmin = catchAsync(async (req: Request, res: Response) => {
-  const orders = await orderService.getAllOrdersForAdmin();
+  const result = await orderService.getAllOrdersForAdmin(
+    req.query as any, // ← pass query params for pagination
+  );
   res.status(200).json({
     success: true,
     message: "All orders retrieved successfully",
-    data: orders,
-    total: orders.length,
+    data: result.data,
+    meta: result.meta,
+    total: result.meta.total,
   });
 });
 
