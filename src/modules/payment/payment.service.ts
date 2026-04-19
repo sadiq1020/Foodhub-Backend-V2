@@ -1,12 +1,10 @@
-import Stripe from "stripe";
 import { stripe } from "../../config/stripe";
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 
 const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
   // 1. Verify the request genuinely came from Stripe
-  // Without this check, anyone could POST to your webhook and fake a payment
-  let event: Stripe.Event;
+  let event: any;
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -22,7 +20,6 @@ const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
   }
 
   // 2. Idempotency check — skip if we already processed this event
-  // Stripe retries webhooks on failure, so this prevents double-processing
   const existingPayment = await prisma.payment.findFirst({
     where: { stripeEventId: event.id },
   });
@@ -32,11 +29,10 @@ const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
     return { received: true };
   }
 
-  // 3. Handle the event types we care about
+  // 3. Handle event types
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
-
+      const session = event.data.object;
       const orderId = session.metadata?.orderId;
       const paymentId = session.metadata?.paymentId;
 
@@ -47,13 +43,12 @@ const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
 
       const isPaid = session.payment_status === "paid";
 
-      // Update payment and order atomically
       await prisma.$transaction(async (tx) => {
         await tx.payment.update({
           where: { id: paymentId },
           data: {
             status: isPaid ? "PAID" : "FAILED",
-            stripeEventId: event.id, // store for idempotency
+            stripeEventId: event.id,
           },
         });
 
@@ -72,8 +67,7 @@ const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
     }
 
     case "checkout.session.expired": {
-      // Customer abandoned the payment — mark as failed
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object;
       const paymentId = session.metadata?.paymentId;
 
       if (paymentId) {
@@ -90,7 +84,6 @@ const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
     }
 
     default:
-      // We don't handle this event type — that's fine, just acknowledge
       console.log(`Unhandled Stripe event type: ${event.type}`);
   }
 

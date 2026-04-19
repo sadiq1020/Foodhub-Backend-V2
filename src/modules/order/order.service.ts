@@ -104,7 +104,7 @@ const createOrder = async (data: ICreateOrder) => {
       // Delivery fee as a separate line item
       {
         price_data: {
-          currency: "usd",
+          currency: "bdt",
           product_data: { name: "Delivery Fee" },
           unit_amount: deliveryFee * 100,
         },

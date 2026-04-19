@@ -1,5 +1,6 @@
 import "dotenv/config";
 import app from "./app";
+import { startJobs } from "./jobs";
 import { prisma } from "./lib/prisma";
 
 const PORT = process.env.PORT || 5000;
@@ -11,6 +12,7 @@ async function main() {
 
     app.listen(PORT, () => {
       console.log(`Server is Running on port ${PORT}`);
+      startJobs();
     });
   } catch (error) {
     console.log("an error occurred", error);
