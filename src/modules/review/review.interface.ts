@@ -1,6 +1,11 @@
 export interface ICreateReview {
   mealId: string;
   customerId: string;
-  rating: number; // 1-5
-  comment?: string;
+  rating: number;
+  comment?: string | undefined;
+}
+
+export interface IUpdateReview {
+  rating?: number | undefined;
+  comment?: string | undefined;
 }

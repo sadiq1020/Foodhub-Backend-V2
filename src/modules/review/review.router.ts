@@ -14,4 +14,7 @@ router.post(
   reviewController.createReview,
 );
 
+router.put("/:id", auth(ROLES.CUSTOMER), reviewController.updateReview);
+router.delete("/:id", auth(ROLES.CUSTOMER), reviewController.deleteReview);
+
 export const reviewRouter = router;
