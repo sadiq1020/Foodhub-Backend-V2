@@ -1,4 +1,7 @@
-import "dotenv/config";
+import "dotenv/config"; // ← load .env first
+import validateEnv from "./config/env"; // ← then validate
+validateEnv(); // ← runs immediately, exits if anything missing
+
 import app from "./app";
 import { startJobs } from "./jobs";
 import { prisma } from "./lib/prisma";
@@ -15,7 +18,7 @@ async function main() {
       startJobs();
     });
   } catch (error) {
-    console.log("an error occurred", error);
+    console.log("An error occurred", error);
     await prisma.$disconnect();
     process.exit(1);
   }

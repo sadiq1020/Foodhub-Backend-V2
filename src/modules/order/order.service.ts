@@ -1,26 +1,27 @@
 import { v4 as uuidv4 } from "uuid";
-import { stripe } from "../../config/stripe";
+import { getStripe } from "../../config/stripe";
 import AppError from "../../errors/AppError";
+import {
+  sendOrderCancelledEmail,
+  sendOrderConfirmationEmail,
+  sendOrderStatusUpdateEmail,
+} from "../../lib/email";
 import { prisma } from "../../lib/prisma";
 import { IQueryParams, QueryBuilder } from "../../utils/QueryBuilder";
 import { ICreateOrder } from "./order.interface";
 import { generateOrderNumber } from "./order.utils";
 
 const createOrder = async (data: ICreateOrder) => {
-  // 1. Fetch meal prices from DB — never trust frontend prices
   const mealIds = data.items.map((item) => item.mealId);
   const meals = await prisma.meal.findMany({
     where: { id: { in: mealIds } },
-    include: {
-      provider: { select: { businessName: true } },
-    },
+    include: { provider: { select: { businessName: true } } },
   });
 
   if (meals.length !== mealIds.length) {
     throw new AppError(404, "One or more meals were not found");
   }
 
-  // 2. Calculate totals server-side
   let subtotal = 0;
   const orderItemsData = data.items.map((item) => {
     const meal = meals.find((m) => m.id === item.mealId);
@@ -28,10 +29,8 @@ const createOrder = async (data: ICreateOrder) => {
     if (!meal.isAvailable) {
       throw new AppError(400, `"${meal.name}" is currently unavailable`);
     }
-
     const itemTotal = Number(meal.price) * item.quantity;
     subtotal += itemTotal;
-
     return {
       mealId: item.mealId,
       quantity: item.quantity,
@@ -43,9 +42,8 @@ const createOrder = async (data: ICreateOrder) => {
   const deliveryFee = 50;
   const total = subtotal + deliveryFee;
   const orderNumber = generateOrderNumber();
-  const transactionId = uuidv4(); // internal payment reference
+  const transactionId = uuidv4();
 
-  // 3. Create Order, OrderItems, and Payment in one transaction
   const { order, payment } = await prisma.$transaction(async (tx) => {
     const newOrder = await tx.order.create({
       data: {
@@ -83,26 +81,18 @@ const createOrder = async (data: ICreateOrder) => {
     return { order: newOrder, payment: newPayment };
   });
 
-  // 4. Create Stripe Checkout session
-  // This happens OUTSIDE the transaction — if Stripe fails, the order still
-  // exists in DB and the customer can retry payment later
-  const stripeSession = await stripe.checkout.sessions.create({
+  const stripeSession = await getStripe().checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
     line_items: [
-      // One line item per meal
       ...orderItemsData.map((item) => ({
         price_data: {
           currency: "bdt",
-          product_data: {
-            name: item.name,
-          },
-          // Stripe expects amount in cents (smallest currency unit)
+          product_data: { name: item.name },
           unit_amount: Math.round(Number(item.price) * 100),
         },
         quantity: item.quantity,
       })),
-      // Delivery fee as a separate line item
       {
         price_data: {
           currency: "bdt",
@@ -112,23 +102,42 @@ const createOrder = async (data: ICreateOrder) => {
         quantity: 1,
       },
     ],
-    // These IDs are passed back in the webhook — critical for linking payment to order
-    metadata: {
-      orderId: order.id,
-      paymentId: payment.id,
-    },
+    metadata: { orderId: order.id, paymentId: payment.id },
     success_url: `${process.env.FRONTEND_URL}/orders/${order.id}?payment=success`,
     cancel_url: `${process.env.FRONTEND_URL}/orders/${order.id}?payment=cancelled`,
   });
 
-  return {
-    order,
-    payment,
-    paymentUrl: stripeSession.url, // frontend redirects customer here
-  };
+  // Send order confirmation email — non-blocking
+  // If email fails, the order still succeeds
+  const customer = await prisma.user.findUnique({
+    where: { id: data.customerId },
+    select: { name: true, email: true },
+  });
+
+  if (customer && stripeSession.url) {
+    sendOrderConfirmationEmail({
+      to: customer.email,
+      customerName: customer.name,
+      orderNumber,
+      orderId: order.id,
+      items: orderItemsData.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: Number(item.price),
+      })),
+      subtotal,
+      deliveryFee,
+      total,
+      deliveryAddress: data.deliveryAddress,
+      paymentUrl: stripeSession.url,
+    }).catch((err) =>
+      console.error("Failed to send order confirmation email:", err.message),
+    );
+  }
+
+  return { order, payment, paymentUrl: stripeSession.url };
 };
 
-// update order status (Provider only)
 const updateOrderStatus = async (
   orderId: string,
   status: string,
@@ -140,12 +149,11 @@ const updateOrderStatus = async (
       items: {
         include: {
           meal: {
-            include: {
-              provider: { select: { id: true, userId: true } },
-            },
+            include: { provider: { select: { id: true, userId: true } } },
           },
         },
       },
+      customer: { select: { name: true, email: true } },
     },
   });
 
@@ -154,7 +162,6 @@ const updateOrderStatus = async (
   const hasProviderMeals = order.items.some(
     (item) => item.meal.provider.userId === userId,
   );
-
   if (!hasProviderMeals) {
     throw new AppError(
       403,
@@ -170,7 +177,7 @@ const updateOrderStatus = async (
     );
   }
 
-  return prisma.order.update({
+  const updatedOrder = await prisma.order.update({
     where: { id: orderId },
     data: { status: status as any },
     include: {
@@ -178,12 +185,28 @@ const updateOrderStatus = async (
       customer: { select: { id: true, name: true, email: true } },
     },
   });
+
+  // Send status update email — non-blocking
+  if (order.customer) {
+    sendOrderStatusUpdateEmail({
+      to: order.customer.email,
+      customerName: order.customer.name,
+      orderNumber: order.orderNumber,
+      status: status as "PREPARING" | "READY" | "DELIVERED",
+    }).catch((err) =>
+      console.error("Failed to send status update email:", err.message),
+    );
+  }
+
+  return updatedOrder;
 };
 
-// cancel order (Customer only)
 const cancelOrder = async (orderId: string, userId: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
+    include: {
+      customer: { select: { name: true, email: true } },
+    },
   });
 
   if (!order) throw new AppError(404, "Order not found");
@@ -200,7 +223,7 @@ const cancelOrder = async (orderId: string, userId: string) => {
     );
   }
 
-  return prisma.order.update({
+  const updatedOrder = await prisma.order.update({
     where: { id: orderId },
     data: { status: "CANCELLED" },
     include: {
@@ -208,28 +231,22 @@ const cancelOrder = async (orderId: string, userId: string) => {
       customer: { select: { id: true, name: true, email: true } },
     },
   });
+
+  // Send cancellation email — non-blocking
+  if (order.customer) {
+    sendOrderCancelledEmail({
+      to: order.customer.email,
+      customerName: order.customer.name,
+      orderNumber: order.orderNumber,
+    }).catch((err) =>
+      console.error("Failed to send cancellation email:", err.message),
+    );
+  }
+
+  return updatedOrder;
 };
 
-// get my orders (Customer only)
-// const getMyOrders = async (userId: string) => {
-//   return prisma.order.findMany({
-//     where: { customerId: userId },
-//     include: {
-//       items: {
-//         include: {
-//           meal: {
-//             select: { id: true, name: true, image: true, price: true },
-//           },
-//         },
-//       },
-//       payment: {
-//         select: { id: true, status: true, amount: true },
-//       },
-//     },
-//     orderBy: { createdAt: "desc" },
-//   });
-// };
-
+// Paginated with QueryBuilder
 const getMyOrders = async (userId: string, queryParams: IQueryParams) => {
   return new QueryBuilder(prisma.order, queryParams, {
     defaultSortBy: "createdAt",
@@ -249,28 +266,7 @@ const getMyOrders = async (userId: string, queryParams: IQueryParams) => {
     });
 };
 
-// get all orders (Admin only)
-// const getAllOrdersForAdmin = async () => {
-//   return prisma.order.findMany({
-//     include: {
-//       items: {
-//         include: {
-//           meal: {
-//             select: { id: true, name: true, image: true, price: true },
-//           },
-//         },
-//       },
-//       customer: {
-//         select: { id: true, name: true, email: true, phone: true },
-//       },
-//       payment: {
-//         select: { id: true, status: true, amount: true, transactionId: true },
-//       },
-//     },
-//     orderBy: { createdAt: "desc" },
-//   });
-// };
-
+// Paginated with QueryBuilder
 const getAllOrdersForAdmin = async (queryParams: IQueryParams) => {
   return new QueryBuilder(prisma.order, queryParams, {
     searchableFields: ["orderNumber"],
@@ -296,7 +292,6 @@ const getAllOrdersForAdmin = async (queryParams: IQueryParams) => {
     });
 };
 
-// get order by id (Customer/Provider)
 const getOrderById = async (
   orderId: string,
   userId: string,
@@ -316,9 +311,7 @@ const getOrderById = async (
           },
         },
       },
-      customer: {
-        select: { id: true, name: true, email: true, phone: true },
-      },
+      customer: { select: { id: true, name: true, email: true, phone: true } },
       payment: {
         select: { id: true, status: true, amount: true, transactionId: true },
       },

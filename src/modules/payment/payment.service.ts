@@ -1,4 +1,6 @@
-import { stripe } from "../../config/stripe";
+import { sendPaymentSuccessEmail } from "../../lib/email";
+// import { stripe } from "../../config/stripe";
+import { getStripe } from "../../config/stripe";
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 
@@ -7,7 +9,7 @@ const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
   let event: any;
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       rawBody,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!,
@@ -59,6 +61,30 @@ const handleWebhookEvent = async (rawBody: Buffer, signature: string) => {
           },
         });
       });
+
+      // Send payment success email — non-blocking
+      if (isPaid) {
+        const orderWithCustomer = await prisma.order.findUnique({
+          where: { id: orderId },
+          select: {
+            orderNumber: true,
+            total: true,
+            customer: { select: { name: true, email: true } },
+          },
+        });
+
+        if (orderWithCustomer?.customer) {
+          sendPaymentSuccessEmail({
+            to: orderWithCustomer.customer.email,
+            customerName: orderWithCustomer.customer.name,
+            orderNumber: orderWithCustomer.orderNumber,
+            orderId,
+            total: Number(orderWithCustomer.total),
+          }).catch((err) =>
+            console.error("Failed to send payment success email:", err.message),
+          );
+        }
+      }
 
       console.log(
         `✅ Payment ${isPaid ? "PAID" : "FAILED"} for order ${orderId}`,
