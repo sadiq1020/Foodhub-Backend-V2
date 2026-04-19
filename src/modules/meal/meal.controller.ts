@@ -5,30 +5,40 @@ import { IMealFilters } from "./meal.interface";
 import { mealService } from "./meal.service";
 
 const createMeal = catchAsync(async (req: Request, res: Response) => {
-  const result = await mealService.createMeal(req.body, req.user!.id);
+  // When image is uploaded, multer puts the Cloudinary URL in req.file.path
+  // Other form fields come through req.body as strings (multipart/form-data)
+  const imageUrl = req.file ? (req.file as any).path : undefined;
+
+  // Parse fields that come as strings from multipart forms
+  const body = {
+    ...req.body,
+    price: req.body.price ? Number(req.body.price) : undefined,
+    // dietary: req.body.dietary ? JSON.parse(req.body.dietary) : undefined,
+    dietary: req.body.dietary
+      ? (() => {
+          try {
+            const parsed = JSON.parse(req.body.dietary);
+            return Array.isArray(parsed) ? parsed : [parsed];
+          } catch {
+            // If not valid JSON, treat it as a single string value in an array
+            return [req.body.dietary];
+          }
+        })()
+      : undefined,
+    isAvailable:
+      req.body.isAvailable !== undefined
+        ? req.body.isAvailable === "true"
+        : undefined,
+    ...(imageUrl && { image: imageUrl }),
+  };
+
+  const result = await mealService.createMeal(body, req.user!.id);
   res.status(201).json({
     success: true,
     message: "Meal created successfully",
     data: result,
   });
 });
-
-// const getAllMeals = catchAsync(async (req: Request, res: Response) => {
-//   const filters: IMealFilters = {
-//     categoryId: req.query.categoryId as string | undefined,
-//     dietary: req.query.dietary as string | undefined,
-//     providerId: req.query.providerId as string | undefined,
-//     search: req.query.search as string | undefined,
-//     minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
-//     maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
-//   };
-//   const result = await mealService.getAllMeals(filters);
-//   res.status(200).json({
-//     success: true,
-//     message: "Meals retrieved successfully",
-//     data: result,
-//   });
-// });
 
 const getAllMeals = catchAsync(async (req: Request, res: Response) => {
   const filters: IMealFilters = {
@@ -38,7 +48,6 @@ const getAllMeals = catchAsync(async (req: Request, res: Response) => {
     search: req.query.search as string | undefined,
     minPrice: req.query.minPrice ? Number(req.query.minPrice) : undefined,
     maxPrice: req.query.maxPrice ? Number(req.query.maxPrice) : undefined,
-    // Pagination params
     page: req.query.page as string | undefined,
     limit: req.query.limit as string | undefined,
     sortBy: req.query.sortBy as string | undefined,
@@ -46,7 +55,6 @@ const getAllMeals = catchAsync(async (req: Request, res: Response) => {
   };
 
   const result = await mealService.getAllMeals(filters);
-
   res.status(200).json({
     success: true,
     message: "Meals retrieved successfully",
@@ -69,7 +77,37 @@ const getMealById = catchAsync(async (req: Request, res: Response) => {
 const updateMeal = catchAsync(async (req: Request, res: Response) => {
   const mealId = req.params.id as string;
   if (!mealId) throw new AppError(400, "Meal ID is required");
-  const result = await mealService.updateMeal(mealId, req.body, req.user!.id);
+
+  const imageUrl = req.file ? (req.file as any).path : undefined;
+
+  const body = {
+    ...req.body,
+    price: req.body.price ? Number(req.body.price) : undefined,
+    // dietary: req.body.dietary ? JSON.parse(req.body.dietary) : undefined,
+    dietary: req.body.dietary
+      ? (() => {
+          try {
+            const parsed = JSON.parse(req.body.dietary);
+            return Array.isArray(parsed) ? parsed : [parsed];
+          } catch {
+            // If not valid JSON, treat it as a single string value in an array
+            return [req.body.dietary];
+          }
+        })()
+      : undefined,
+    isAvailable:
+      req.body.isAvailable !== undefined
+        ? req.body.isAvailable === "true"
+        : undefined,
+    ...(imageUrl && { image: imageUrl }),
+  };
+
+  // Remove undefined values so we don't overwrite DB fields with undefined
+  Object.keys(body).forEach(
+    (key) => body[key] === undefined && delete body[key],
+  );
+
+  const result = await mealService.updateMeal(mealId, body, req.user!.id);
   res.status(200).json({
     success: true,
     message: "Meal updated successfully",
@@ -81,10 +119,7 @@ const deleteMeal = catchAsync(async (req: Request, res: Response) => {
   const mealId = req.params.id as string;
   if (!mealId) throw new AppError(400, "Meal ID is required");
   const result = await mealService.deleteMeal(mealId, req.user!.id);
-  res.status(200).json({
-    success: true,
-    message: result.message,
-  });
+  res.status(200).json({ success: true, message: result.message });
 });
 
 const getMyMeals = catchAsync(async (req: Request, res: Response) => {

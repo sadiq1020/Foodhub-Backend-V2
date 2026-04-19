@@ -16,11 +16,9 @@
 
 import Stripe from "stripe";
 
-// Lazy instance — created only when first used, not at import time
-// This allows validateEnv() to run first and give a clean error message
-let stripeInstance: Stripe | null = null;
+let stripeInstance: InstanceType<typeof Stripe> | null = null;
 
-export const getStripe = (): Stripe => {
+export const getStripe = (): InstanceType<typeof Stripe> => {
   if (!stripeInstance) {
     stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY!);
   }

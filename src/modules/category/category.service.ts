@@ -1,8 +1,8 @@
+import { deleteFromCloudinary } from "../../config/cloudinary";
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { ICreateCategory, IUpdateCategory } from "./category.interface";
 
-// ✅ Helper to generate slug from name
 const generateSlug = (name: string): string => {
   return name
     .toLowerCase()
@@ -10,111 +10,69 @@ const generateSlug = (name: string): string => {
     .replace(/^-|-$/g, "");
 };
 
-// create new category
 const createCategory = async (data: ICreateCategory) => {
-  // console.log("🔍 Data received in service:", data);
-  // console.log("🔍 Data type:", typeof data);
-  // console.log("🔍 Data keys:", Object.keys(data));
-  // ✅ Auto-generate slug from name
   const categoryData = {
     name: data.name,
     slug: generateSlug(data.name),
     image: data.image || null,
   };
 
-  const result = await prisma.category.create({
-    data: categoryData,
-  });
-
-  return result;
+  return prisma.category.create({ data: categoryData });
 };
 
-// get all categories
 const getAllCategories = async () => {
-  const categories = await prisma.category.findMany({
-    include: {
-      _count: {
-        select: {
-          meals: true, // this will show hoe many meals in each category
-        },
-      },
-    },
-    orderBy: {
-      name: "asc", // sort by alphabetically
-    },
+  return prisma.category.findMany({
+    include: { _count: { select: { meals: true } } },
+    orderBy: { name: "asc" },
   });
-
-  return categories;
 };
 
-// update category
 const updateCategory = async (categoryId: string, data: IUpdateCategory) => {
   const category = await prisma.category.findUnique({
     where: { id: categoryId },
-    select: { id: true },
+    select: { id: true, image: true },
   });
 
-  // if (!category) {
-  //   throw new Error("Category not found");
-  // }
+  if (!category) throw new AppError(404, "Category not found");
 
-  if (!category) {
-    throw new AppError(404, "Category not found");
+  // Delete old image if a new one was uploaded
+  if (data.image && category.image && category.image !== data.image) {
+    deleteFromCloudinary(category.image).catch(() => {});
   }
 
-  // ✅ Auto-generate slug if name is being updated
   const updateData: any = { ...data };
   if (data.name) {
     updateData.slug = generateSlug(data.name);
   }
 
-  const updatedCategory = await prisma.category.update({
+  return prisma.category.update({
     where: { id: categoryId },
     data: updateData,
-    include: {
-      _count: {
-        select: {
-          meals: true,
-        },
-      },
-    },
+    include: { _count: { select: { meals: true } } },
   });
-
-  return updatedCategory;
 };
 
-// delete category
 const deleteCategory = async (categoryId: string) => {
-  // 1. Verify category exists
   const category = await prisma.category.findUnique({
     where: { id: categoryId },
-    include: {
-      _count: {
-        select: {
-          meals: true,
-        },
-      },
-    },
+    include: { _count: { select: { meals: true } } },
   });
 
-  if (!category) {
-    throw new AppError(404, "Category not found");
-  }
+  if (!category) throw new AppError(404, "Category not found");
 
-  // 2. Check if category has meals
   if (category._count.meals > 0) {
     throw new AppError(
-      409,
-      `Cannot delete category. It has ${category._count.meals} meal/s that is/are associate with it.`,
+      400,
+      `Cannot delete category. It has ${category._count.meals} meal(s) associated with it.`,
     );
   }
 
-  // 3. Delete category
-  await prisma.category.delete({
-    where: { id: categoryId },
-  });
+  // Delete category image from Cloudinary if it exists
+  if ((category as any).image) {
+    deleteFromCloudinary((category as any).image).catch(() => {});
+  }
 
-  // 4. Return success message
+  await prisma.category.delete({ where: { id: categoryId } });
   return { message: "Category deleted successfully!" };
 };
 

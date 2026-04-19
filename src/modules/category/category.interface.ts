@@ -1,11 +1,11 @@
 export interface ICreateCategory {
   name: string;
-  slug: string; // ✅ Add slug
-  image?: string;
+  slug?: string | undefined;
+  image?: string | undefined;
 }
 
 export interface IUpdateCategory {
-  name?: string;
-  slug?: string; // ✅ Add slug
-  image?: string;
+  name?: string | undefined;
+  slug?: string | undefined;
+  image?: string | undefined;
 }

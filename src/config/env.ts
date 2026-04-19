@@ -27,6 +27,11 @@ const requiredEnvVars = [
   // Stripe
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
+
+  // cloudinary
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
 ] as const;
 
 const validateEnv = (): void => {

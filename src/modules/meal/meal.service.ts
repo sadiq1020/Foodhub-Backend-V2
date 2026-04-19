@@ -1,21 +1,16 @@
+import { deleteFromCloudinary } from "../../config/cloudinary";
 import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { QueryBuilder } from "../../utils/QueryBuilder";
 import { ICreateMeal, IMealFilters, IUpdateMeal } from "./meal.interface";
 
-// create a meal with validation
 const createMeal = async (data: ICreateMeal, userId: string) => {
-  // 1. Verify provider exists
   const provider = await prisma.providerProfiles.findUnique({
     where: { id: data.providerId },
     select: { id: true, userId: true },
   });
 
-  if (!provider) {
-    throw new AppError(404, "Provider not found");
-  }
-
-  // 2. Verify provider's userId matches authenticated user
+  if (!provider) throw new AppError(404, "Provider not found");
   if (provider.userId !== userId) {
     throw new AppError(
       403,
@@ -23,74 +18,22 @@ const createMeal = async (data: ICreateMeal, userId: string) => {
     );
   }
 
-  // 3. Verify category exists
   const category = await prisma.category.findUnique({
     where: { id: data.categoryId },
     select: { id: true },
   });
 
-  if (!category) {
-    throw new AppError(404, "Category not found");
-  }
+  if (!category) throw new AppError(404, "Category not found");
 
-  // 4. Create meal
-  const result = await prisma.meal.create({
-    data,
+  return prisma.meal.create({
+    data: data as any,
     include: {
       category: true,
-      provider: {
-        select: {
-          id: true,
-          businessName: true,
-        },
-      },
+      provider: { select: { id: true, businessName: true } },
     },
   });
-
-  return result;
 };
 
-// get all meals with filters - KEEP USING THE ORIGINAL PRISMA IMPORT
-// const getAllMeals = async (filters: IMealFilters) => {
-//   const { categoryId, dietary, minPrice, maxPrice, search, providerId } =
-//     filters;
-
-//   const result = await prisma.meal.findMany({
-//     // ... rest stays exactly the same
-//     where: {
-//       isAvailable: true,
-//       ...(categoryId && { categoryId }),
-//       ...(providerId && { providerId }),
-//       ...(dietary && { dietary: { has: dietary } }),
-//       price: {
-//         ...(minPrice !== undefined && { gte: minPrice }),
-//         ...(maxPrice !== undefined && { lte: maxPrice }),
-//       },
-//       ...(search && {
-//         OR: [
-//           { name: { contains: search, mode: "insensitive" } },
-//           { description: { contains: search, mode: "insensitive" } },
-//         ],
-//       }),
-//     },
-//     include: {
-//       category: true,
-//       provider: {
-//         select: {
-//           id: true,
-//           businessName: true,
-//         },
-//       },
-//     },
-//     orderBy: {
-//       createdAt: "desc",
-//     },
-//   });
-
-//   return result;
-// };
-
-// NOW uses QueryBuilder — supports ?page=1&limit=10&search=pizza&sortBy=price&sortOrder=asc
 const getAllMeals = async (filters: IMealFilters) => {
   const {
     categoryId,
@@ -101,11 +44,7 @@ const getAllMeals = async (filters: IMealFilters) => {
     ...queryParams
   } = filters;
 
-  // Build extra where conditions for filters QueryBuilder doesn't handle
-  // (dietary arrays and price ranges need special Prisma syntax)
-  const extraWhere: Record<string, any> = {
-    isAvailable: true,
-  };
+  const extraWhere: Record<string, any> = { isAvailable: true };
 
   if (categoryId) extraWhere.categoryId = categoryId;
   if (providerId) extraWhere.providerId = providerId;
@@ -133,43 +72,24 @@ const getAllMeals = async (filters: IMealFilters) => {
     });
 };
 
-// get meal by id - KEEP USING THE ORIGINAL PRISMA IMPORT
 const getMealById = async (mealId: string) => {
   const result = await prisma.meal.findUnique({
-    // ... rest stays exactly the same
     where: { id: mealId },
     include: {
       category: true,
-      provider: {
-        select: {
-          id: true,
-          businessName: true,
-          address: true,
-        },
-      },
+      provider: { select: { id: true, businessName: true, address: true } },
       reviews: {
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
+        include: { customer: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
 
-  if (!result) {
-    throw new AppError(404, "Meal not found");
-  }
+  if (!result) throw new AppError(404, "Meal not found");
 
   const averageRating =
     result.reviews.length > 0
-      ? result.reviews.reduce((sum, review) => sum + review.rating, 0) /
+      ? result.reviews.reduce((sum, r) => sum + r.rating, 0) /
         result.reviews.length
       : 0;
 
@@ -180,118 +100,73 @@ const getMealById = async (mealId: string) => {
   };
 };
 
-// update a meal
 const updateMeal = async (
   mealId: string,
   data: IUpdateMeal,
   userId: string,
 ) => {
-  // 1. Find meal by id with provider info
   const meal = await prisma.meal.findUnique({
     where: { id: mealId },
-    include: {
-      provider: {
-        select: { id: true, userId: true },
-      },
-    },
+    include: { provider: { select: { id: true, userId: true } } },
   });
 
-  // 2. Verify meal exists
-  if (!meal) {
-    throw new AppError(404, "Meal not found");
-  }
-
-  // 3. Verify meal.provider.userId matches authenticated user
+  if (!meal) throw new AppError(404, "Meal not found");
   if (meal.provider.userId !== userId) {
     throw new AppError(403, "You can only update your own meals");
   }
 
-  // 4. Update meal
-  const result = await prisma.meal.update({
+  // If a new image was uploaded and the meal already has one,
+  // delete the old image from Cloudinary to avoid orphaned files
+  if (data.image && meal.image && meal.image !== data.image) {
+    deleteFromCloudinary(meal.image).catch(() => {});
+  }
+
+  return prisma.meal.update({
     where: { id: mealId },
     data: data as any,
     include: {
       category: true,
-      provider: {
-        select: {
-          id: true,
-          businessName: true,
-        },
-      },
+      provider: { select: { id: true, businessName: true } },
     },
   });
-
-  // 5. Return updated meal
-  return result;
 };
 
-// delete a meal
 const deleteMeal = async (mealId: string, userId: string) => {
-  // 1. Find meal by id with provider info
   const meal = await prisma.meal.findUnique({
     where: { id: mealId },
-    include: {
-      provider: {
-        select: { id: true, userId: true },
-      },
-    },
+    include: { provider: { select: { id: true, userId: true } } },
   });
 
-  // 2. Verify meal exists
-  if (!meal) {
-    throw new AppError(404, "Meal not found");
-  }
-
-  // 3. Verify meal.provider.userId matches authenticated user
+  if (!meal) throw new AppError(404, "Meal not found");
   if (meal.provider.userId !== userId) {
     throw new AppError(403, "You can only delete your own meals");
   }
 
-  // 4. Delete meal (Prisma will cascade delete related orderItems and reviews)
-  await prisma.meal.delete({
-    where: { id: mealId },
-  });
+  // Delete image from Cloudinary when meal is deleted
+  if (meal.image) {
+    deleteFromCloudinary(meal.image).catch(() => {});
+  }
 
-  // 5. Return success message
+  await prisma.meal.delete({ where: { id: mealId } });
   return { message: "Meal deleted successfully" };
 };
 
-// get meals created by this provider
 const getMyMeals = async (userId: string) => {
-  // 1. Find the provider profile for this user
   const provider = await prisma.providerProfiles.findUnique({
     where: { userId },
     select: { id: true },
   });
 
-  if (!provider) {
-    throw new AppError(404, "Provider profile not found");
-  }
+  if (!provider) throw new AppError(404, "Provider profile not found");
 
-  // 2. Get all meals for this provider
-  const meals = await prisma.meal.findMany({
-    where: {
-      providerId: provider.id,
-    },
+  return prisma.meal.findMany({
+    where: { providerId: provider.id },
     include: {
-      category: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      _count: {
-        select: {
-          reviews: true,
-        },
-      },
+      category: { select: { id: true, name: true } },
+      _count: { select: { reviews: true } },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
   });
-
-  return meals;
 };
 
 export const mealService = {

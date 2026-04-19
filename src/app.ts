@@ -66,7 +66,8 @@
 
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
+import multer from "multer";
 import { auth } from "./lib/auth";
 import globalErrorHandler from "./middlewares/globalErrorHandler"; // ← ADD
 import notFound from "./middlewares/notFound"; // ← ADD
@@ -139,6 +140,16 @@ app.use("/admin", adminRouter);
 // test the server running
 app.get("/", (req, res) => {
   res.send("FoodHub API is running! 🍽️");
+});
+
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof multer.MulterError || err.message?.includes("format")) {
+    return res.status(400).json({
+      success: false,
+      message: err.message || "File upload failed. Check file type and size.",
+    });
+  }
+  next(err);
 });
 
 // ↓ These two MUST be after all routes

@@ -4,7 +4,14 @@ import catchAsync from "../../shared/catchAsync";
 import { categoryService } from "./category.service";
 
 const createCategory = catchAsync(async (req: Request, res: Response) => {
-  const result = await categoryService.createCategory(req.body);
+  const imageUrl = req.file ? (req.file as any).path : undefined;
+
+  const body = {
+    ...req.body,
+    ...(imageUrl && { image: imageUrl }),
+  };
+
+  const result = await categoryService.createCategory(body);
   res.status(201).json({
     success: true,
     message: "Category created successfully",
@@ -24,7 +31,15 @@ const getAllCategories = catchAsync(async (req: Request, res: Response) => {
 const updateCategory = catchAsync(async (req: Request, res: Response) => {
   const categoryId = req.params.id as string;
   if (!categoryId) throw new AppError(400, "Category ID is required");
-  const result = await categoryService.updateCategory(categoryId, req.body);
+
+  const imageUrl = req.file ? (req.file as any).path : undefined;
+
+  const body = {
+    ...req.body,
+    ...(imageUrl && { image: imageUrl }),
+  };
+
+  const result = await categoryService.updateCategory(categoryId, body);
   res.status(200).json({
     success: true,
     message: "Category updated successfully",
@@ -35,6 +50,7 @@ const updateCategory = catchAsync(async (req: Request, res: Response) => {
 const deleteCategory = catchAsync(async (req: Request, res: Response) => {
   const categoryId = req.params.id as string;
   if (!categoryId) throw new AppError(400, "Category ID is required");
+
   const result = await categoryService.deleteCategory(categoryId);
   res.status(200).json({
     success: true,

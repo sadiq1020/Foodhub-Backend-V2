@@ -1,9 +1,8 @@
 import express from "express";
+import { uploadMealImage } from "../../config/cloudinary";
 import auth from "../../middlewares/auth.middleware";
-import validateRequest from "../../middlewares/validateRequest";
 import { ROLES } from "../../shared";
 import { mealController } from "./meal.controller";
-import { createMealSchema, updateMealSchema } from "./meal.validation";
 
 const router = express.Router();
 
@@ -13,7 +12,8 @@ router.get("/", mealController.getAllMeals);
 router.post(
   "/",
   auth(ROLES.PROVIDER),
-  validateRequest(createMealSchema),
+  uploadMealImage.single("image"), // ← multer runs first, uploads to Cloudinary
+  // validateRequest(createMealSchema),
   mealController.createMeal,
 );
 
@@ -22,7 +22,8 @@ router.get("/:id", mealController.getMealById);
 router.put(
   "/:id",
   auth(ROLES.PROVIDER),
-  validateRequest(updateMealSchema),
+  uploadMealImage.single("image"), // ← optional on update
+  // validateRequest(updateMealSchema),
   mealController.updateMeal,
 );
 
