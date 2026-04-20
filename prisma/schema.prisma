@@ -84,6 +84,7 @@ model Meal {
 
   orderItems OrderItem[]
   reviews    Review[]
+  favourites Favourite[]
 
   @@map("meals")
 }
@@ -165,6 +166,22 @@ model Review {
   @@map("reviews")
 }
 
+model Favourite {
+  id String @id @default(uuid())
+
+  customerId String
+  customer   User   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  mealId String
+  meal   Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // A customer can only favourite a meal once
+  @@unique([customerId, mealId])
+  @@map("favourites")
+}
+
 // ==========================================
 // BETTER AUTH MODELS
 // ==========================================
@@ -191,6 +208,7 @@ model User {
   providerProfile ProviderProfiles?
   orders          Order[]
   reviews         Review[]
+  favourites      Favourite[]
 
   @@map("user")
 }

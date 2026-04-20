@@ -74,6 +74,7 @@ import notFound from "./middlewares/notFound"; // ← ADD
 import { adminRouter } from "./modules/admin/admin.route";
 import { authRouter } from "./modules/auth/auth.router";
 import { categoryRouter } from "./modules/category/category.router";
+import { favouriteRouter } from "./modules/favourite/favourite.router";
 import { mealRouter } from "./modules/meal/meal.router";
 import { orderRouter } from "./modules/order/order.route";
 import { paymentController } from "./modules/payment/payment.controller";
@@ -136,6 +137,7 @@ app.use("/orders", orderRouter);
 app.use("/users", userRouter);
 app.use("/reviews", reviewRouter);
 app.use("/admin", adminRouter);
+app.use("/favourites", favouriteRouter);
 
 // test the server running
 app.get("/", (req, res) => {
