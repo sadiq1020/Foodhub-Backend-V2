@@ -8,10 +8,16 @@ import {
 
 // create new category
 const createProviderProfile = async (data: ICreateProviderProfile) => {
-  const result = await prisma.providerProfiles.create({
-    data,
+  const existing = await prisma.providerProfiles.findUnique({
+    where: { userId: data.userId },
   });
-  return result;
+  if (existing) {
+    throw new AppError(
+      409,
+      "A provider profile already exists for this account",
+    );
+  }
+  return prisma.providerProfiles.create({ data: data as any });
 };
 
 // get my provider profile
@@ -197,6 +203,9 @@ const getProviderById = async (providerId: string) => {
   if (!profile) {
     throw new AppError(404, "Provider profile not found");
   }
+  if (profile.status !== "APPROVED") {
+    return { ...profile, meals: [] };
+  }
 
   return profile;
 };
@@ -236,6 +245,7 @@ const getAllProviders = async (queryParams: IQueryParams) => {
     .search()
     .paginate()
     .sort()
+    .where({ status: "APPROVED" })
     .execute({
       _count: { select: { meals: true } },
     });

@@ -7,7 +7,7 @@ import { ICreateMeal, IMealFilters, IUpdateMeal } from "./meal.interface";
 const createMeal = async (data: ICreateMeal, userId: string) => {
   const provider = await prisma.providerProfiles.findUnique({
     where: { id: data.providerId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, status: true },
   });
 
   if (!provider) throw new AppError(404, "Provider not found");
@@ -15,6 +15,13 @@ const createMeal = async (data: ICreateMeal, userId: string) => {
     throw new AppError(
       403,
       "You can only create meals for your own provider profile",
+    );
+  }
+
+  if (provider.status !== "APPROVED") {
+    throw new AppError(
+      403,
+      "Your provider account is pending admin approval. You cannot create meals until approved.",
     );
   }
 

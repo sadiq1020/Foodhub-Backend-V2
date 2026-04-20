@@ -8,7 +8,8 @@ const createProviderProfile = catchAsync(
     const result = await providerService.createProviderProfile(req.body);
     res.status(201).json({
       success: true,
-      message: "Provider profile created successfully",
+      message:
+        "Provider profile created successfully. Awaiting admin approval before you can list meals.",
       data: result,
     });
   },
@@ -53,18 +54,7 @@ const getProviderById = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// const getAllProviders = catchAsync(async (req: Request, res: Response) => {
-//   const providers = await providerService.getAllProviders();
-//   res.status(200).json({
-//     success: true,
-//     message: "Providers retrieved successfully",
-//     data: providers,
-//     total: providers.length,
-//   });
-// });
-
 const getAllProviders = catchAsync(async (req: Request, res: Response) => {
-  // Pass all query params — the QueryBuilder picks what it needs
   const result = await providerService.getAllProviders(req.query as any);
   res.status(200).json({
     success: true,

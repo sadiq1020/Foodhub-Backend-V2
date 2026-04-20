@@ -31,18 +31,29 @@ enum PaymentStatus {
   FAILED
 }
 
+enum ProviderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ==========================================
 // CUSTOM MODELS
 // ==========================================
 
 model ProviderProfiles {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   businessName String
   description  String?
   address      String
   logo         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+
+  // Approval flow
+  status          ProviderStatus @default(PENDING)
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
