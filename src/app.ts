@@ -87,9 +87,9 @@ const app = express();
 
 // CORS Configuration for Production
 const allowedOrigins = [
-  "http://localhost:3000", // Local development
-  "https://ph-next-level-b6-a4-foodhub-fronten.vercel.app",
-  process.env.APP_URL, // Frontend URL from environment variable
+  "http://localhost:3000",
+  "https://foodhub-frontend-v2.vercel.app",
+  process.env.APP_URL,
 ].filter(Boolean);
 
 // console.log("🔧 Allowed CORS origins:", allowedOrigins);

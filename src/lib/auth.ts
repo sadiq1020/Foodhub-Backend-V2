@@ -98,7 +98,7 @@ export const auth = betterAuth({
 
   trustedOrigins: [
     "http://localhost:3000",
-    "https://ph-next-level-b6-a4-foodhub-fronten.vercel.app",
+    "https://foodhub-frontend-v2.vercel.app",
     process.env.APP_URL!,
   ],
 
