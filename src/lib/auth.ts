@@ -85,7 +85,7 @@
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, oAuthProxy } from "better-auth/plugins";
 import { sendOtpEmail } from "./email";
 import { prisma } from "./prisma";
 
@@ -161,6 +161,7 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    oAuthProxy(),
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,
