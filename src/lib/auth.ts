@@ -102,6 +102,17 @@ export const auth = betterAuth({
     process.env.APP_URL!,
   ],
 
+  advanced: {
+    crossSubDomainCookies: {
+      enabled: false,
+    },
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+      partitioned: true,
+    },
+  },
+
   user: {
     additionalFields: {
       role: {
