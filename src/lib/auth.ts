@@ -85,7 +85,7 @@
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP, oAuthProxy } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins";
 import { sendOtpEmail } from "./email";
 import { prisma } from "./prisma";
 
@@ -102,15 +102,29 @@ export const auth = betterAuth({
     process.env.APP_URL!,
   ],
 
+  // advanced: {
+  //   crossSubDomainCookies: {
+  //     enabled: false,
+  //   },
+  //   defaultCookieAttributes: {
+  //     sameSite: "none",
+  //     secure: true,
+  //     partitioned: true,
+  //   },
+  // },
+
   advanced: {
-    crossSubDomainCookies: {
-      enabled: false,
-    },
-    defaultCookieAttributes: {
-      sameSite: "none",
-      secure: true,
-      partitioned: true,
-    },
+    defaultCookieAttributes:
+      process.env.NODE_ENV === "production"
+        ? {
+            sameSite: "none",
+            secure: true,
+          }
+        : {},
+  },
+  account: {
+    storeStateStrategy: "database",
+    skipStateCookieCheck: true,
   },
 
   user: {
@@ -161,9 +175,9 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    oAuthProxy({
-      productionURL: "https://foodhub-frontend-v2.vercel.app",
-    }),
+    // oAuthProxy({
+    //   productionURL: "https://foodhub-frontend-v2.vercel.app",
+    // }),
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,
