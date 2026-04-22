@@ -161,7 +161,9 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    oAuthProxy(),
+    oAuthProxy({
+      productionURL: "https://foodhub-frontend-v2.vercel.app",
+    }),
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,
