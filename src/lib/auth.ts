@@ -101,6 +101,7 @@ export const auth = betterAuth({
     "https://foodhub-frontend-v2.vercel.app",
     process.env.APP_URL!,
   ],
+  credentials: true,
 
   // advanced: {
   //   crossSubDomainCookies: {
