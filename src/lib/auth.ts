@@ -85,7 +85,7 @@
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, oAuthProxy } from "better-auth/plugins";
 import { sendOtpEmail } from "./email";
 import { prisma } from "./prisma";
 
@@ -178,6 +178,13 @@ export const auth = betterAuth({
     // oAuthProxy({
     //   productionURL: "https://foodhub-frontend-v2.vercel.app",
     // }),
+    oAuthProxy({
+      productionURL: "https://foodhub-frontend-v2.vercel.app",
+      currentURL:
+        process.env.NODE_ENV === "production"
+          ? "https://foodhub-frontend-v2.vercel.app"
+          : "http://localhost:3000",
+    }),
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,
