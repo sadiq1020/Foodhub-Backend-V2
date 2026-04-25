@@ -2,8 +2,6 @@
 
 A full-stack multi-role food delivery platform where customers can browse meals, place orders, and pay online — while providers list their meals and manage incoming orders, and admins oversee the entire platform.
 
-Built as Assignment 4 for the PH Next Level Web Development Course (Batch B6).
-
 ---
 
 ## 🌐 Live URLs
@@ -12,7 +10,6 @@ Built as Assignment 4 for the PH Next Level Web Development Course (Batch B6).
 |---|---|
 | Frontend | https://foodhub-frontend-v2.vercel.app |
 | Backend API | https://foodhub-backend-v2.onrender.com |
-| Backend Health Check | https://foodhub-backend-v2.onrender.com/ |
 
 > **Note:** The backend is hosted on Render's free tier. If it hasn't received traffic recently, the first request may take 30–50 seconds to wake up.
 
@@ -32,7 +29,7 @@ FoodHub V2 is a complete food delivery web application with three distinct user 
 
 ### Authentication & Security
 - Email + password registration with **6-digit OTP email verification** (10-minute expiry)
-- **Google OAuth** login for customers (auto-verified)
+- **Google OAuth** login for customers — works perfectly in local development. Currently disabled on the live version due to cross-domain cookie limitations between the free tiers of Render and Vercel.
 - Forgot password / OTP reset flow
 - Change password for logged-in users
 - Role-based access control (CUSTOMER, PROVIDER, ADMIN)
@@ -248,7 +245,7 @@ Copy the `whsec_` secret it outputs and paste it into your `.env` as `STRIPE_WEB
 
 ## 👤 Default Admin Credentials
 
-After running `npm run seed:admin`, you can log in with the credentials you set in `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your `.env` file.
+After running `npm run seed:admin`, log in with the credentials you set in `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your `.env` file.
 
 ---
 
