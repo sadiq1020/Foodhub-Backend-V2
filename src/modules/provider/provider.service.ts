@@ -6,6 +6,73 @@ import {
   IUpdateProviderProfile,
 } from "./provider.interface";
 
+// ── Top providers for landing page ────────────────────────────────────────────
+// Ranks APPROVED providers by number of available meals (desc).
+// Also computes an average rating across all their meals' reviews.
+const getTopProviders = async (limit = 3) => {
+  const providers = await prisma.providerProfiles.findMany({
+    where: { status: "APPROVED" },
+    include: {
+      _count: {
+        select: { meals: true },
+      },
+      meals: {
+        where: { isAvailable: true },
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          price: true,
+          reviews: {
+            select: { rating: true },
+          },
+        },
+      },
+    },
+  });
+
+  // Compute derived stats per provider
+  const ranked = providers
+    .map((p) => {
+      const allRatings = p.meals.flatMap((m) => m.reviews.map((r) => r.rating));
+      const avgRating =
+        allRatings.length > 0
+          ? Number(
+              (
+                allRatings.reduce((a, b) => a + b, 0) / allRatings.length
+              ).toFixed(1),
+            )
+          : null;
+
+      // Pick up to 3 meal images for the card preview strip
+      const mealPreviews = p.meals
+        .filter((m) => m.image)
+        .slice(0, 3)
+        .map((m) => ({ id: m.id, name: m.name, image: m.image }));
+
+      return {
+        id: p.id,
+        businessName: p.businessName,
+        description: p.description,
+        address: p.address,
+        logo: p.logo,
+        totalMeals: p.meals.length, // available meals only
+        totalReviews: allRatings.length,
+        avgRating,
+        mealPreviews,
+      };
+    })
+    // Rank by available meal count, then by avg rating as tiebreaker
+    .sort((a, b) =>
+      b.totalMeals !== a.totalMeals
+        ? b.totalMeals - a.totalMeals
+        : (b.avgRating ?? 0) - (a.avgRating ?? 0),
+    )
+    .slice(0, limit);
+
+  return ranked;
+};
+
 // create new category
 const createProviderProfile = async (data: ICreateProviderProfile) => {
   const existing = await prisma.providerProfiles.findUnique({
@@ -252,6 +319,7 @@ const getAllProviders = async (queryParams: IQueryParams) => {
 };
 
 export const providerService = {
+  getTopProviders,
   createProviderProfile,
   getMyProfile,
   updateMyProfile,

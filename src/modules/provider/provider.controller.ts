@@ -3,6 +3,17 @@ import AppError from "../../errors/AppError";
 import catchAsync from "../../shared/catchAsync";
 import { providerService } from "./provider.service";
 
+// ── Public: top providers for the landing page ────────────────────────────────
+const getTopProviders = catchAsync(async (req: Request, res: Response) => {
+  const limit = Math.min(Number(req.query.limit) || 3, 10);
+  const providers = await providerService.getTopProviders(limit);
+
+  res.status(200).json({
+    success: true,
+    data: providers,
+  });
+});
+
 const createProviderProfile = catchAsync(
   async (req: Request, res: Response) => {
     const result = await providerService.createProviderProfile(req.body);
@@ -65,6 +76,7 @@ const getAllProviders = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const providerController = {
+  getTopProviders,
   createProviderProfile,
   getMyProfile,
   updateMyProfile,
