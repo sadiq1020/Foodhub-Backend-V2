@@ -7,6 +7,10 @@ import { createOrderSchema, updateOrderStatusSchema } from "./order.validation";
 
 const router = express.Router();
 
+// ── Public: landing page live stats (no auth) ─────────────────────────────────
+router.get("/stats", orderController.getPublicStats);
+
+// ── Protected routes ──────────────────────────────────────────────────────────
 router.post(
   "/",
   auth(ROLES.CUSTOMER),

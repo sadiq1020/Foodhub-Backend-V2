@@ -11,6 +11,33 @@ import { IQueryParams, QueryBuilder } from "../../utils/QueryBuilder";
 import { ICreateOrder } from "./order.interface";
 import { generateOrderNumber } from "./order.utils";
 
+// ── Public stats for the landing page counter section ─────────────────────────
+// Returns live counts: total orders placed, delivered orders, active providers,
+// and total meals available. No auth required.
+const getPublicStats = async () => {
+  const [
+    totalOrders,
+    deliveredOrders,
+    activeProviders,
+    totalMeals,
+    totalCustomers,
+  ] = await Promise.all([
+    prisma.order.count(),
+    prisma.order.count({ where: { status: "DELIVERED" } }),
+    prisma.providerProfiles.count({ where: { status: "APPROVED" } }),
+    prisma.meal.count({ where: { isAvailable: true } }),
+    prisma.user.count({ where: { role: "CUSTOMER" } }),
+  ]);
+
+  return {
+    totalOrders,
+    deliveredOrders,
+    activeProviders,
+    totalMeals,
+    totalCustomers,
+  };
+};
+
 const createOrder = async (data: ICreateOrder) => {
   const mealIds = data.items.map((item) => item.mealId);
   const meals = await prisma.meal.findMany({
@@ -340,6 +367,7 @@ const getOrderById = async (
 };
 
 export const orderService = {
+  getPublicStats,
   createOrder,
   updateOrderStatus,
   cancelOrder,

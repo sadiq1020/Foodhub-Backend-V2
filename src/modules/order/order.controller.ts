@@ -3,6 +3,15 @@ import AppError from "../../errors/AppError";
 import catchAsync from "../../shared/catchAsync";
 import { orderService } from "./order.service";
 
+// ── Public: live stats for the landing page counter section ───────────────────
+const getPublicStats = catchAsync(async (_req: Request, res: Response) => {
+  const stats = await orderService.getPublicStats();
+  res.status(200).json({
+    success: true,
+    data: stats,
+  });
+});
+
 const createOrder = catchAsync(async (req: Request, res: Response) => {
   const order = await orderService.createOrder({
     customerId: req.user!.id,
@@ -112,6 +121,7 @@ const getOrderById = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const orderController = {
+  getPublicStats,
   createOrder,
   updateOrderStatus,
   cancelOrder,
