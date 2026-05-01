@@ -3,6 +3,17 @@ import AppError from "../../errors/AppError";
 import catchAsync from "../../shared/catchAsync";
 import { reviewService } from "./review.service";
 
+// ── Public: top 5-star reviews for the landing page ───────────────────────
+const getTopReviews = catchAsync(async (req: Request, res: Response) => {
+  const limit = Math.min(Number(req.query.limit) || 9, 20);
+  const reviews = await reviewService.getTopReviews(limit);
+
+  res.status(200).json({
+    success: true,
+    data: reviews,
+  });
+});
+
 const createReview = catchAsync(async (req: Request, res: Response) => {
   const { mealId, rating, comment } = req.body;
 
@@ -65,4 +76,5 @@ export const reviewController = {
   createReview,
   updateReview,
   deleteReview,
+  getTopReviews,
 };

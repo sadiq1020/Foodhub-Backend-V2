@@ -2,6 +2,24 @@ import AppError from "../../errors/AppError";
 import { prisma } from "../../lib/prisma";
 import { ICreateReview, IUpdateReview } from "./review.interface";
 
+// ── GET public top reviews (5-star, for landing page testimonials) ─────────
+const getTopReviews = async (limit = 9) => {
+  const reviews = await prisma.review.findMany({
+    where: {
+      rating: 5,
+      comment: { not: null },
+    },
+    include: {
+      customer: { select: { id: true, name: true } },
+      meal: { select: { id: true, name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+
+  return reviews;
+};
+
 // create review (Customer only, after order delivered)
 const createReview = async (data: ICreateReview) => {
   // 1. Check if meal exists
@@ -128,4 +146,5 @@ export const reviewService = {
   createReview,
   updateReview,
   deleteReview,
+  getTopReviews,
 };

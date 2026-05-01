@@ -7,6 +7,11 @@ import { createReviewSchema } from "./review.validation";
 
 const router = express.Router();
 
+// ── Public route — no auth needed ─────────────────────────────────────────
+// GET /reviews/top  →  returns latest 5-star reviews for the landing page
+router.get("/top", reviewController.getTopReviews);
+
+// ── Protected routes ───────────────────────────────────────────────────────
 router.post(
   "/",
   auth(ROLES.CUSTOMER),
