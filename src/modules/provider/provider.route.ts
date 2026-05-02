@@ -27,4 +27,7 @@ router.put(
 
 router.get("/orders", auth(ROLES.PROVIDER), providerController.getMyOrders);
 
+// ── Dashboard stats & charts ──────────────────────────────────────────────────
+router.get("/stats", auth(ROLES.PROVIDER), providerController.getMyStats);
+
 export const providerRouter = router;

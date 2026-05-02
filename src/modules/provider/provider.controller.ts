@@ -75,6 +75,14 @@ const getAllProviders = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMyStats = catchAsync(async (req: Request, res: Response) => {
+  const stats = await providerService.getMyStats(req.user!.id);
+  res.status(200).json({
+    success: true,
+    data: stats,
+  });
+});
+
 export const providerController = {
   getTopProviders,
   createProviderProfile,
@@ -83,4 +91,5 @@ export const providerController = {
   getProviderById,
   getMyOrders,
   getAllProviders,
+  getMyStats,
 };

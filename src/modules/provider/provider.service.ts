@@ -73,7 +73,7 @@ const getTopProviders = async (limit = 3) => {
   return ranked;
 };
 
-// create new category
+// create new provider profile
 const createProviderProfile = async (data: ICreateProviderProfile) => {
   const existing = await prisma.providerProfiles.findUnique({
     where: { userId: data.userId },
@@ -89,7 +89,6 @@ const createProviderProfile = async (data: ICreateProviderProfile) => {
 
 // get my provider profile
 const getMyProfile = async (userId: string) => {
-  // Find provider profile by userId
   const profile = await prisma.providerProfiles.findUnique({
     where: { userId },
     include: {
@@ -122,7 +121,6 @@ const getMyProfile = async (userId: string) => {
     },
   });
 
-  // If no profile exists
   if (!profile) {
     throw new AppError(404, "Provider profile not found");
   }
@@ -135,18 +133,15 @@ const updateMyProfile = async (
   userId: string,
   data: IUpdateProviderProfile,
 ) => {
-  // 1. Find provider profile by userId
   const profile = await prisma.providerProfiles.findUnique({
     where: { userId },
     select: { id: true },
   });
 
-  // 2. Verify profile exists
   if (!profile) {
     throw new AppError(404, "Provider profile not found");
   }
 
-  // 3. Update provider profile
   const updatedProfile = await prisma.providerProfiles.update({
     where: { id: profile.id },
     data,
@@ -168,24 +163,20 @@ const updateMyProfile = async (
     },
   });
 
-  // 4. Return updated profile
   return updatedProfile;
 };
 
 // get orders for my meals (Provider only)
 const getMyOrders = async (userId: string) => {
-  // 1. Find provider profile by userId
   const profile = await prisma.providerProfiles.findUnique({
     where: { userId },
     select: { id: true },
   });
 
-  // 2. Verify profile exists
   if (!profile) {
     throw new AppError(404, "Provider profile not found");
   }
 
-  // 3. Find all orders that contain meals from this provider
   const orders = await prisma.order.findMany({
     where: {
       items: {
@@ -200,7 +191,7 @@ const getMyOrders = async (userId: string) => {
       items: {
         where: {
           meal: {
-            providerId: profile.id, // it means -> Only include items from this provider
+            providerId: profile.id,
           },
         },
         include: {
@@ -224,11 +215,10 @@ const getMyOrders = async (userId: string) => {
       },
     },
     orderBy: {
-      createdAt: "desc", // Most recent orders will show at first
+      createdAt: "desc",
     },
   });
 
-  // 4. Return orders
   return orders;
 };
 
@@ -277,31 +267,7 @@ const getProviderById = async (providerId: string) => {
   return profile;
 };
 
-// get all provider profiles (Public)
-// const getAllProviders = async () => {
-//   const providers = await prisma.providerProfiles.findMany({
-//     select: {
-//       id: true,
-//       businessName: true,
-//       description: true,
-//       address: true,
-//       logo: true,
-//       createdAt: true,
-//       _count: {
-//         select: {
-//           meals: true,
-//         },
-//       },
-//     },
-//     orderBy: {
-//       businessName: "asc",
-//     },
-//   });
-
-//   return providers;
-// };
-
-// NOW uses QueryBuilder — supports ?page=1&limit=10&search=burger&sortBy=businessName
+// get all provider profiles (Public) — supports pagination/search/sort
 const getAllProviders = async (queryParams: IQueryParams) => {
   return new QueryBuilder(prisma.providerProfiles, queryParams, {
     searchableFields: ["businessName", "description", "address"],
@@ -318,6 +284,113 @@ const getAllProviders = async (queryParams: IQueryParams) => {
     });
 };
 
+// ── Provider dashboard stats & chart data ────────────────────────────────────
+const getMyStats = async (userId: string) => {
+  const profile = await prisma.providerProfiles.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+
+  if (!profile) throw new AppError(404, "Provider profile not found");
+
+  const providerId = profile.id;
+
+  const [totalMeals, availableMeals] = await Promise.all([
+    prisma.meal.count({ where: { providerId } }),
+    prisma.meal.count({ where: { providerId, isAvailable: true } }),
+  ]);
+
+  const providerOrders = await prisma.order.findMany({
+    where: { items: { some: { meal: { providerId } } } },
+    select: { id: true, status: true, total: true, createdAt: true },
+  });
+
+  const totalOrders = providerOrders.length;
+  const totalRevenue = providerOrders
+    .filter((o) => o.status === "DELIVERED")
+    .reduce((sum, o) => sum + Number(o.total), 0);
+
+  // Orders by status — pie chart
+  const statusCounts: Record<string, number> = {
+    PLACED: 0,
+    PREPARING: 0,
+    READY: 0,
+    DELIVERED: 0,
+    CANCELLED: 0,
+  };
+  providerOrders.forEach((o) => {
+    if (o.status in statusCounts)
+      statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1;
+  });
+
+  const ordersByStatus = [
+    { name: "Placed", value: statusCounts.PLACED, fill: "#6366f1" },
+    { name: "Preparing", value: statusCounts.PREPARING, fill: "#f59e0b" },
+    { name: "Ready", value: statusCounts.READY, fill: "#3b82f6" },
+    { name: "Delivered", value: statusCounts.DELIVERED, fill: "#10b981" },
+    { name: "Cancelled", value: statusCounts.CANCELLED, fill: "#ef4444" },
+  ];
+
+  // Revenue per day last 7 days — bar chart
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
+  const dayMap: Record<string, number> = {};
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const label = d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    dayMap[label] = 0;
+  }
+
+  // Count ALL orders (any status) placed in the last 7 days
+  providerOrders
+    .filter((o) => new Date(o.createdAt) >= sevenDaysAgo)
+    .forEach((o) => {
+      const label = new Date(o.createdAt).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      if (label in dayMap) dayMap[label] = (dayMap[label] ?? 0) + 1;
+    });
+
+  const ordersLast7Days = Object.entries(dayMap).map(([day, orders]) => ({
+    day,
+    orders,
+  }));
+
+  // Reviews
+  const reviews = await prisma.review.findMany({
+    where: { meal: { providerId } },
+    select: { rating: true },
+  });
+
+  const totalReviews = reviews.length;
+  const avgRating =
+    totalReviews > 0
+      ? Number(
+          (reviews.reduce((s, r) => s + r.rating, 0) / totalReviews).toFixed(1),
+        )
+      : null;
+
+  return {
+    totalMeals,
+    availableMeals,
+    totalOrders,
+    totalRevenue: Math.round(totalRevenue),
+    totalReviews,
+    avgRating,
+    ordersByStatus,
+    ordersLast7Days,
+  };
+};
+
 export const providerService = {
   getTopProviders,
   createProviderProfile,
@@ -326,4 +399,5 @@ export const providerService = {
   getProviderById,
   getMyOrders,
   getAllProviders,
+  getMyStats,
 };
