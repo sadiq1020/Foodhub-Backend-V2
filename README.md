@@ -29,11 +29,12 @@ FoodHub V2 is a complete food delivery web application with three distinct user 
 
 ### Authentication & Security
 - Email + password registration with **6-digit OTP email verification** (10-minute expiry)
-- **Google OAuth** login for customers — works perfectly in local development. Currently disabled on the live version due to cross-domain cookie limitations between the free tiers of Render and Vercel.
+- **Google OAuth** login for customers — fully functional in both local development and production
 - Forgot password / OTP reset flow
 - Change password for logged-in users
-- Role-based access control (CUSTOMER, PROVIDER, ADMIN)
+- Role-based access control (`CUSTOMER`, `PROVIDER`, `ADMIN`)
 - Suspended users cannot log in
+- Non-customer accounts (admin/provider) are blocked from adding items to cart with a clear toast message
 
 ### Core Backend Architecture
 - Global error handler with `catchAsync` + `AppError` — centralized error handling across all controllers
@@ -62,13 +63,15 @@ FoodHub V2 is a complete food delivery web application with three distinct user 
 - Order status update emails (PREPARING, READY, DELIVERED)
 - Order cancellation notification
 
-### UI/UX & Frontend Enhancements
-- **AI Chatbot Integration** — intelligent, context-aware chatbot helper for customers and providers
-- **Dynamic Landing Page** — featuring Statistics, Testimonials, Top Providers, New Food, FAQ, and CTA sections
-- **Premium Design System** — sticky navbar, uniform 4-per-row meal grids, and consistent card heights
-- **Flawless Dark & Light Mode** — comprehensive theme support and visually striking aesthetics across all pages
-- **Admin & Provider Dashboards** — fully equipped with analytical charts for tracking orders and revenue
-- **Dedicated Information Pages** — About, Contact, Help, Privacy Policy, and Terms of Service styled consistently
+### UI/UX & Frontend
+- **AI Chatbot (FoodBot)** — context-aware chatbot powered by Gemini AI for customer and provider support
+- **AI-Powered Recommendations** — "Recommended for you" home page section using Gemini AI; picks 4 meals from live data based on time of day, user context, and category diversity. Includes a refresh button and graceful fallback
+- **Dynamic Landing Page** — Hero with rotating taglines and auto-cycling food cards, Categories, Featured Meals, AI Recommendations, New Meals, How It Works, Testimonials, Top Providers, Statistics, FAQ, and CTA sections (10+ meaningful sections)
+- **Blog / Journal** — full blog page at `/blog` with category filtering, live search, featured post, newsletter CTA, and 8 food-focused articles. Linked in the navbar and footer
+- **Role-based Dashboard Sidebar** — persistent animated sidebar for Admin (violet theme) and Provider (emerald theme) with collapse/expand on desktop and a slide-in drawer on mobile. Includes profile dropdown with logout
+- **Premium Design System** — sticky navbar with 4 public routes, uniform 4-per-row meal grids, consistent card heights, and dark/light mode throughout
+- **Admin & Provider Dashboards** — stat cards, bar/pie charts with real data, searchable and paginated data tables
+- **Dedicated Information Pages** — About, Contact, Blog, Privacy Policy, and Terms of Service
 
 ### Additional Features
 - **File cleanup on request failure** — orphaned Cloudinary files deleted automatically via global error handler
@@ -102,9 +105,11 @@ FoodHub V2 is a complete food delivery web application with three distinct user 
 | TanStack Query + custom `api.ts` | Data fetching |
 | React Hook Form + Zod | Form validation |
 | shadcn/ui + Tailwind CSS | UI components and styling |
+| Framer Motion | Page and section animations |
 | Zustand | Cart state (per-user localStorage) |
 | Sonner | Toast notifications |
 | Stripe.js | Payment redirect |
+| Gemini AI API | Chatbot + meal recommendations |
 
 ### Infrastructure
 | Service | Purpose |
@@ -125,6 +130,7 @@ FoodHub V2 is a complete food delivery web application with three distinct user 
 - Stripe account
 - Gmail account with App Password enabled
 - Google Cloud project with OAuth 2.0 credentials
+- Gemini API key (free tier at [Google AI Studio](https://aistudio.google.com))
 
 ---
 
@@ -228,6 +234,9 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 
 # Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id
+
+# Gemini AI (for chatbot and meal recommendations)
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 **4. Start the development server**
