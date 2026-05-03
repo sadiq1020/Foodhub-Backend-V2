@@ -62,6 +62,14 @@ FoodHub V2 is a complete food delivery web application with three distinct user 
 - Order status update emails (PREPARING, READY, DELIVERED)
 - Order cancellation notification
 
+### UI/UX & Frontend Enhancements
+- **AI Chatbot Integration** — intelligent, context-aware chatbot helper for customers and providers
+- **Dynamic Landing Page** — featuring Statistics, Testimonials, Top Providers, New Food, FAQ, and CTA sections
+- **Premium Design System** — sticky navbar, uniform 4-per-row meal grids, and consistent card heights
+- **Flawless Dark & Light Mode** — comprehensive theme support and visually striking aesthetics across all pages
+- **Admin & Provider Dashboards** — fully equipped with analytical charts for tracking orders and revenue
+- **Dedicated Information Pages** — About, Contact, Help, Privacy Policy, and Terms of Service styled consistently
+
 ### Additional Features
 - **File cleanup on request failure** — orphaned Cloudinary files deleted automatically via global error handler
 - **Meal favourites / bookmarks** — customers can save, unsave, and list their favourite meals
