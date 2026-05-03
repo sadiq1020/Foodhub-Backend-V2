@@ -85,7 +85,7 @@
 
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, oAuthProxy } from "better-auth/plugins";
 import { sendOtpEmail } from "./email";
 import { prisma } from "./prisma";
 
@@ -120,13 +120,9 @@ export const auth = betterAuth({
   },
 
   advanced: {
-    defaultCookieAttributes:
-      process.env.NODE_ENV === "production"
-        ? {
-            sameSite: "none",
-            secure: true,
-          }
-        : {},
+    // When using a proxy (Next.js rewrites), cookies should use default 'lax' 
+    // because the browser thinks it is talking to the same domain.
+    defaultCookieAttributes: {},
   },
 
   user: {
@@ -177,9 +173,9 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    // oAuthProxy({
-    //   productionURL: "https://foodhub-frontend-v2.vercel.app",
-    // }),
+    oAuthProxy({
+      productionURL: "https://foodhub-frontend-v2.vercel.app",
+    }),
     emailOTP({
       overrideDefaultEmailVerification: true,
       otpLength: 6,
